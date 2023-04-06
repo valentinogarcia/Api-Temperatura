@@ -159,7 +159,7 @@ app.use(express.json());
 *           required: true
 *       tags: 
 *         - put
-*       summary: Devuelve todos los paises y sus datos
+*       summary: Reemplaza todos los valores del pais por los recibidos
 *       requestBody:
 *         required: true
 *         content:
@@ -169,7 +169,6 @@ app.use(express.json());
 *           
 *       responses:
 *         200:
-*           description: nigger
 *           content:
 *             application/json:
 *               schema:
@@ -181,8 +180,9 @@ app.put( '/paises/:pais', (_req,_res)=> {
     console.log( p )
     if (p){
         paises[paises.indexOf(p)] =_req.body
+       return _res.send(  "Putteado exitosamente ponele" )   
       }
-    _res.send(  "Putteado exitosamente ponele" )    
+      _res.sendStatus(400)    
      }
 
  )
@@ -207,7 +207,7 @@ app.put( '/paises/:pais', (_req,_res)=> {
 *           required: true
 *       tags: 
 *         - put
-*       summary: Devuelve todos los paises y sus datos
+*       summary: Reemplaza todos los datos de la provincia por los del body
 *       requestBody:
 *         required: true
 *         content:
@@ -217,7 +217,6 @@ app.put( '/paises/:pais', (_req,_res)=> {
 *           
 *       responses:
 *         200:
-*           description: nigger
 *           content:
 *             application/json:
 *               schema:
@@ -230,11 +229,12 @@ app.put( '/paises/:pais', (_req,_res)=> {
     console.log( p )
     if (p){
       const provincia = paises[paises.indexOf(p)].provincias.find((pa) => pa.nombre.toLowerCase() === _req.params.provincia.toLowerCase()  )
-      if(!provincia){ return _res.status(400) }
+      if(!provincia){ return _res.sendStatus(400) }
       const x = paises[paises.indexOf(p)].provincias.indexOf( provincia )
       paises[paises.indexOf(p)].provincias[ x ] =_req.body
+      return _res.send(  "Putteado exitosamente ponele" )   
       }
-    _res.send(  "Putteado exitosamente ponele" )    
+    _res.sendStatus(400)    
      }
 
  )
@@ -247,9 +247,13 @@ app.put( '/paises/:pais', (_req,_res)=> {
 *       parameters:
 *         - in: path
 *           name: pais
+*         - in: path
+*           name: provincia
+*         - in: path
+*           name: ciudad
 *       tags: 
 *         - put
-*       summary: Devuelve todos los paises y sus datos
+*       summary: Reemplaza todos los datos de la ciudad por los del body
 *       requestBody:
 *         required: true
 *         content:
@@ -259,7 +263,6 @@ app.put( '/paises/:pais', (_req,_res)=> {
 *           
 *       responses:
 *         200:
-*           description: nigger
 *           content:
 *             application/json:
 *               schema:
@@ -271,13 +274,14 @@ app.put( '/paises/:pais', (_req,_res)=> {
   console.log( p )
   if (p){
     const provincia = paises[paises.indexOf(p)].provincias.find((pa) => pa.nombre.toLowerCase() === _req.params.provincia.toLowerCase()  )
-    if(!provincia){ return _res.status(400) }
+    if(!provincia){ return _res.sendStatus(400) }
     const v = paises.indexOf(p)
     const x = paises[v].provincias.indexOf(provincia)
     const y = paises[v].provincias.find( (pa) => pa.nombre.toLowerCase() === _req.params.ciudad.toLowerCase() )
 
-    paises[v].provincias[ x ].ciudades =_req.body    }
-  _res.send(  "Putteado exitosamente ponele" )    
+    paises[v].provincias[ x ].ciudades =_req.body;    return _res.send(  "Putteado exitosamente ponele" )       
+  }
+  _res.sendStatus(  400 )    
    }
 
 )
@@ -302,7 +306,7 @@ app.put( '/paises/:pais', (_req,_res)=> {
 *           required: true
 *       tags: 
 *         - patch
-*       summary: Devuelve todos los paises y sus datos
+*       summary:  Reepmlaza los datos de la provincia por los datos que no sean undefined o false del body
 *       requestBody:
 *         required: true
 *         content:
@@ -312,7 +316,6 @@ app.put( '/paises/:pais', (_req,_res)=> {
 *           
 *       responses:
 *         200:
-*           description: nigger
 *           content:
 *             application/json:
 *               schema:
@@ -325,14 +328,15 @@ app.put( '/paises/:pais', (_req,_res)=> {
     console.log( pais )
     if (pais){
         const provincia = pais.provincias.find( (element)=> element.nombre==_req.params.provincia)
-          if(!provincia){return _res.status(400) }
+          if(!provincia){return _res.sendStatus(400) }
           if(_req.body.nombre  ) {
             pais.provincias[pais.provincias.indexOf(provincia)].nombre = _req.body.nombre;
           }
            if(_req.body.ciudades==false||_req.body.ciudades==undefined) {pais.provincias[pais.provincias.indexOf(provincia)].ciudades = _req.body.ciudades;} 
+           return _res.send(  "Patcheado exitosamente ponele" ) 
           
       }
-    _res.send(  "Patcheado exitosamente ponele" )    
+      _res.sendStatus(400)
      }
 
  )
@@ -347,9 +351,13 @@ app.put( '/paises/:pais', (_req,_res)=> {
 *       parameters:
 *         - in: path
 *           name: pais
+*         - in: path
+*           name: provincia
+*         - in: path
+*           name: ciudad
 *       tags: 
 *         - patch
-*       summary: Devuelve todos los paises y sus datos
+*       summary: Reepmlaza los datos de la ciudad por aquellos del body que no sean undefined o false
 *       requestBody:
 *         required: true
 *         content:
@@ -359,7 +367,6 @@ app.put( '/paises/:pais', (_req,_res)=> {
 *           
 *       responses:
 *         200:
-*           description: nigger
 *           content:
 *             application/json:
 *               schema:
@@ -371,20 +378,54 @@ app.put( '/paises/:pais', (_req,_res)=> {
   console.log( pais )
   if (pais){
       const provincia = pais.provincias.find( (element)=> element.nombre.toLowerCase()==_req.params.provincia.toLowerCase())
-        if(!provincia){return _res.status(400) }
+        if(!provincia){return _res.sendStatus(400) }
         const ciudad = provincia.ciudades.find((element)=> element.nombre.toLowerCase()==_req.params.ciudad.toLowerCase())
-        if(!ciudad){return _res.status(400)}
+        if(!ciudad){return _res.sendStatus(400)}
         if(_req.body.nombre  ) {
           pais.provincias[pais.provincias.indexOf(provincia)].ciudades[provincia.ciudades.indexOf(ciudad)].nombre = _req.body.nombre;
         }
 
          if(_req.body.registroDeTemperatura==false || _req.body.registroDeTemperatura==undefined) {paises[paises.indexOf(pais)].provincias[pais.provincias.indexOf(provincia)].ciudades[provincia.ciudades.indexOf(ciudad)].registroDeTemperatura = _req.body.registroDeTemperatura;} 
-        
+         return _res.send(  "Patcheado exitosamente ponele" ) 
     }
-  _res.send(  "Patcheado exitosamente ponele" )    
+  _res.sendStatus(400)    
    }
 
 )
+
+
+ /** 
+* @openapi
+* paths:
+*   /paises/{pais}/{provincia}/{ciudad}/{fecha}:
+*     patch:
+*       parameters:
+*         - in: path
+*           name: pais
+*         - in: path
+*           name: provincia
+*         - in: path
+*           name: ciudad
+*         - in: path
+*           name: fecha
+*       tags: 
+*         - patch
+*       summary: Reepmlaza los datos de la fecha por aquellos del body que no sean undefined o false
+*       requestBody:
+*         required: true
+*         content:
+*           application/json:
+*             schema:
+*                $ref: '#/components/schemas/Tiempo'
+*           
+*       responses:
+*         200:
+*           content:
+*             application/json:
+*               schema:
+*                 $ref: '#/components/schemas/Tiempo'
+*/
+
 
 app.patch( '/paises/:pais/:provincia/:ciudad/:fecha', (_req,_res)=> {
   const pais = paises.find((pa) => pa.nombre.toLowerCase() === _req.params.pais.toLowerCase())
@@ -400,24 +441,47 @@ app.patch( '/paises/:pais/:provincia/:ciudad/:fecha', (_req,_res)=> {
           pais.provincias[pais.provincias.indexOf(provincia)].ciudades[provincia.ciudades.indexOf(ciudad)].registroDeTemperatura[ciudad.registroDeTemperatura.indexOf(f)].fecha = new Date(_req.body.fecha);
         }
          if(_req.body.grados) {pais.provincias[pais.provincias.indexOf(provincia)].ciudades[provincia.ciudades.indexOf(ciudad)] = _req.body.grados;} 
-        
+         return _res.send(  "Patcheado exitosamente ponele" ) 
     }
-  _res.send(  "Patcheado exitosamente ponele" )    
-   }
+    _res.sendStatus(  400 )    
+  }
 
 )
 
 
 
 app.get('/', (_req , _res) => _res.send('Bienvenido a mi API REST!'));
-
+/** 
+* @openapi
+* paths:
+*   /paises:
+*     delete:
+*       tags: 
+*         - delete
+*       summary: Borra el pais cuyo nombre coincida con el enviado en el body
+*       requestBody:
+*         required: true
+*         content:
+*           application/json:
+*             schema:
+*               $ref: '#/components/schemas/Pais'
+*           
+*       responses:
+*         200:
+*           content:
+*             application/json:
+*               schema:
+*                 $ref: '#/components/schemas/Pais'
+*       
+*/
 app.delete( '/paises', (_req,_res)=> {
     const p = paises.find((pa) => pa.nombre.toLowerCase() === _req.body.nombre.toLowerCase())
     console.log( p )
     if (p){
         paises.splice(paises.indexOf(p))
+        return _res.send(  "Borrado exitosamente ponele" )   
       }
-    _res.send(  "Borrado exitosamente ponele" )    
+    _res.sendStatus(400)    
      }
 
  )
@@ -435,7 +499,7 @@ app.delete( '/paises', (_req,_res)=> {
 *           required: true
 *       tags: 
 *         - delete
-*       summary: Devuelve todos los paises y sus datos
+*       summary: Borra la provincia indicada en el body
 *       requestBody:
 *         required: true
 *         content:
@@ -445,7 +509,6 @@ app.delete( '/paises', (_req,_res)=> {
 *           
 *       responses:
 *         200:
-*           description: nigger
 *           content:
 *             application/json:
 *               schema:
@@ -460,15 +523,16 @@ app.delete( '/paises', (_req,_res)=> {
   if (p){
     const pr = p.provincias.find((pa) => { console.log(pa); return pa.nombre === _req.body.nombre} )
     console.log(pr)
-    if(!pr){return _res.status(400).send("no bitches?")}
+    if(!pr){return _res.status(400).send("no saturado?")}
       const ent = paises[paises.indexOf(p)].provincias.find( ( prov )=> prov.nombre===_req.body.nombre )
-      if(!ent){return _res.status(400)}
+      if(!ent){return _res.sendStatus(400)}
       const posDelete = paises[paises.indexOf(p)].provincias.indexOf(ent)
       //if(!posDelete){return  _res.status(400).send(" no array? ") }
       //delete paises[paises.indexOf(p)].provincias[p.provincias.indexOf(pr)]
       paises[paises.indexOf(p)].provincias.splice( posDelete,1 )
+      return _res.send(  "Borrado exitosamente ponele" )   
     }
-  _res.send(  "Borrado exitosamente ponele" )    
+  _res.sendStatus( 400 )    
    }
 
 )
@@ -481,15 +545,19 @@ app.delete( '/paises', (_req,_res)=> {
 *       parameters:
 *         - in: path
 *           name: pais
-*         - in: path
-*           name: provincia
 *           schema:
 *             type: string
 *             default: Argentina
 *           required: true
+*         - in: path
+*           name: provincia
+*           schema:
+*             type: string
+*             default: BSAS
+*           required: true
 *       tags: 
 *         - delete
-*       summary: Devuelve todos los paises y sus datos
+*       summary: Borra la ciudad indicada en el body
 *       requestBody:
 *         required: true
 *         content:
@@ -499,7 +567,6 @@ app.delete( '/paises', (_req,_res)=> {
 *           
 *       responses:
 *         200:
-*           description: nigger
 *           content:
 *             application/json:
 *               schema:
@@ -512,34 +579,75 @@ app.delete( '/paises/:pais/:provincia', (_req,_res)=> {
   console.log( p )
   if (p){
     const pr = p.provincias.find((pa) => pa.nombre.toLowerCase() === _req.params.provincia.toLowerCase())
-    if(!pr){return _res.status(400).send("no bitches?")}
+    if(!pr){return _res.status(400).send("no apache2?")}
       const ciudad = pr.ciudades.find( (pa)=> pa.nombre.toLowerCase()=== _req.body.nombre.toLowerCase() )
       if(!ciudad){return  _res.status(400).send(" no array? ") }
       const posDelete = pr.ciudades.indexOf(ciudad)
-      paises[paises.indexOf(p)].provincias[p.provincias.indexOf(pr)].ciudades.splice( posDelete,1 )
+      paises[paises.indexOf(p)].provincias[p.provincias.indexOf(pr)].ciudades.splice( posDelete,1 );    return _res.send(  "Borrado exitosamente ponele" )   
     }
-  _res.send(  "Borrado exitosamente ponele" )    
+  _res.sendStatus(  400 )    
    }
 
 )
-
+ /** 
+* @openapi
+* paths:
+*   /paises/{pais}/{provincia}/{ciudad}:
+*     delete:
+*       parameters:
+*         - in: path
+*           name: pais
+*           schema:
+*             type: string
+*             default: Argentina
+*           required: true
+*         - in: path
+*           name: provincia
+*           schema:
+*             type: string
+*             default: BSAS
+*           required: true
+*         - in: path
+*           name: ciudad
+*           schema:
+*             type: string
+*             default: CABA
+*           required: true
+*       tags: 
+*         - delete
+*       summary: Borra el registro de tiempo indicado en el body
+*       requestBody:
+*         required: true
+*         content:
+*           application/json:
+*             schema:
+*               $ref: '#/components/schemas/Tiempo'
+*           
+*       responses:
+*         200:
+*           content:
+*             application/json:
+*               schema:
+*                 $ref: '#/components/schemas/Tiempo'
+*       
+*/
 app.delete( '/paises/:pais/:provincia/:ciudad', (_req,_res)=> {
   const p = paises.find((pa) => pa.nombre.toLowerCase() === _req.params.pais)
   console.log( p )
   if (p){
 
     const pr = p.provincias.find((pa) => pa.nombre.toLowerCase() === _req.params.provincia.toLowerCase())
-    if(!pr){return _res.status(400).send("no bitches?")}
-      const ciudad = pr.ciudades.find( (pa)=> pa.nombre.toLowerCase()=== _req.params.ciudad.toLowerCase() )
+    if(!pr){return _res.status(400).send("no nginx?")}
+      const ciudad = pr.ciudades.find( (pa)=> pa.nombre=== _req.params.ciudad.toLowerCase() )
       if(!ciudad){return  _res.status(400).send(" no array? ") }
       console.log(_req.body.fecha)
       const reg = ciudad.registroDeTemperatura.find( (pa)=>{return pa.fecha.toString() === _req.body.fecha.toString() } )
       if(!reg){return _res.status(400).send("messi")}
       const posDelete = ciudad.registroDeTemperatura.indexOf(reg)
       paises[paises.indexOf(p)].provincias[p.provincias.indexOf(pr)].ciudades[pr.ciudades.indexOf(ciudad)].registroDeTemperatura.splice( posDelete,1 )
-      _res.send(  "Borrado exitosamente ponele" ) 
+      return _res.send(  "Borrado exitosamente ponele" )    
     }
-   
+    _res.sendStatus(  400 )
    }
 
 )
@@ -550,10 +658,9 @@ app.delete( '/paises/:pais/:provincia/:ciudad', (_req,_res)=> {
 *   get:
 *     tags: 
 *       - get
-*     description: Devuelve todos los paises y sus datos
 *     responses:
 *       200:
-*         description: nigger
+*         description: Funcionamiento normal
 */
 
 app.get( '/paises', (_req,_res)=> _res.status(200).send( paises )
@@ -572,10 +679,9 @@ function PaisByName(nombre: string) {
 *         name: pais
 *     tags: 
 *       - get
-*     description: Devuelve todos los paises y sus datos
 *     responses:
 *       200:
-*         description: nigger
+*         description: Funcionamiento normal
 */
  app.get( '/paises/:pais', (_req,_res)=> {
 
@@ -595,17 +701,16 @@ function PaisByName(nombre: string) {
 *         name: provincia
 *     tags: 
 *       - get
-*     description: Devuelve todos los paises y sus datos
 *     responses:
 *       200:
-*         description: nigger
+*         description: Funcionamiento normal
 */
 
 app.get('/paises/:pais/:provincia', (_req,_res)=> 
 {   
     if( !_req.params.pais || !_req.params.provincia){  return _res.status(400).send("pogichamps")}
     const element = PaisByName(_req.params.pais);
-    if(!element){return _res.status(400)}
+    if(!element){return _res.sendStatus(400)}
     console.log(element, element?.getProvincia(_req.params.provincia));
     
     _res.send( element!.getProvincia( _req.params.provincia) )
@@ -617,10 +722,9 @@ app.get('/paises/:pais/:provincia', (_req,_res)=>
 *   get:
 *     tags: 
 *       - temperaturaPromedio
-*     description: Devuelve todos los paises y sus datos
 *     responses:
 *       200:
-*         description: nigger
+*         description: Funcionamiento normal
 */
 async function main() {
   /** 
@@ -637,7 +741,7 @@ async function main() {
 *           required: true
 *       tags: 
 *         - patch
-*       summary: Devuelve todos los paises y sus datos
+*       summary: Reemplaza los datos del pais por los valores que no sean undefined o false del body
 *       requestBody:
 *         required: true
 *         content:
@@ -647,7 +751,6 @@ async function main() {
 *           
 *       responses:
 *         200:
-*           description: nigger
 *           content:
 *             application/json:
 *               schema:
@@ -666,8 +769,9 @@ async function main() {
         }
         console.log( _req.body.provincias )
          if(_req.body.provincias==false || _req.body.provincias==undefined) {console.log("true");paises[paises.indexOf(pais)].provincias = _req.body.provincias;} 
-         _res.send(  "Patcheado exitosamente ponele" )    
-    }   
+        return _res.send(  "Patcheado exitosamente ponele" )    
+    }
+    _res.sendStatus(400)   
    }
 
 )
@@ -703,10 +807,9 @@ async function main() {
 *         name: pais
 *     tags: 
 *       - temperaturaPromedio
-*     description: Devuelve todos los paises y sus datos
 *     responses:
 *       200:
-*         description: nigger
+*         description: Funcionamiento normal
 */
 app.get( '/temperaturaPromedio/:pais', (_req,_res) => {
   if (!_req.params.pais) {
@@ -733,10 +836,9 @@ app.get( '/temperaturaPromedio/:pais', (_req,_res) => {
 *         name: provincia
 *     tags: 
 *       - temperaturaPromedio
-*     description: Devuelve todos los paises y sus datos
 *     responses:
 *       200:
-*         description: nigger
+*         description: Funcionamiento normal
 */
 
 
@@ -766,7 +868,7 @@ app.get( '/temperaturaPromedio/:pais', (_req,_res) => {
 *   post:
 *     tags: 
 *       - post
-*     summary: Devuelve todos los paises y sus datos
+*     summary: Agrega un pais con los datos del body
 *     requestBody:
 *       required: true
 *       content:
@@ -776,7 +878,6 @@ app.get( '/temperaturaPromedio/:pais', (_req,_res) => {
 *           
 *     responses:
 *       200:
-*         description: nigger
 *         content:
 *           application/json:
 *             schema:
@@ -808,7 +909,7 @@ return _res.status(400).send("Ya existe ese pais")
 *           required: true
 *       tags: 
 *         - post
-*       summary: Devuelve todos los paises y sus datos
+*       summary: Agrega una provincia a un pais, con los datos del body
 *       requestBody:
 *         required: true
 *         content:
@@ -818,7 +919,6 @@ return _res.status(400).send("Ya existe ese pais")
 *           
 *       responses:
 *         200:
-*           description: nigger
 *           content:
 *             application/json:
 *               schema:
@@ -829,7 +929,7 @@ app.post("/paises/:pais", (_req,_res) => {
   const p = new Provincia(_req.body.nombre, _req.body.ciudades);
   console.log(_req.body.nombre," ", _req.body.ciudades)
   const dirPais = paises.find((pa) => pa.nombre.toLowerCase() === _req.params.pais.toLowerCase())
-  if(!dirPais) {return _res.status(400)}
+  if(!dirPais) {return _res.sendStatus(400)}
   const repetido = dirPais.provincias.find( (pa)=>pa.nombre===_req.body.nombre )
   if(repetido){return _res.status(400).send("Ya existe la provincia")}
   console.log(p)
@@ -857,7 +957,7 @@ app.post("/paises/:pais", (_req,_res) => {
 *           required: true
 *       tags: 
 *         - post
-*       summary: Devuelve todos los paises y sus datos
+*       summary: Agrega una ciudad con los datos del body
 *       requestBody:
 *         required: true
 *         content:
@@ -867,7 +967,6 @@ app.post("/paises/:pais", (_req,_res) => {
 *           
 *       responses:
 *         200:
-*           description: nigger
 *           content:
 *             application/json:
 *               schema:
@@ -877,9 +976,9 @@ app.post("/paises/:pais", (_req,_res) => {
 app.post("/paises/:pais/:provincia", (_req,_res) => {
   const p = new Ciudad(_req.body.nombre, _req.body.registroDeTemperatura);
   const dirPais = paises.find((pa) => pa.nombre.toLowerCase() === _req.params.pais.toLowerCase())
-  if(!dirPais) {return _res.status(400)}
+  if(!dirPais) {return _res.sendStatus(400)}
   const dirProvincia = dirPais.provincias.find((pa) => pa.nombre.toLowerCase() === _req.params.provincia.toLowerCase() )
-  if(!dirProvincia) {return _res.status(400)}
+  if(!dirProvincia) {return _res.sendStatus(400)}
   if(dirProvincia.ciudades.find( (pa)=>pa.nombre===_req.body.nombre )) { return _res.status(400).send("ya existe la ciudad") }
   
   paises[paises.indexOf(dirPais)].provincias[paises[paises.indexOf(dirPais)].provincias.indexOf( dirProvincia ) ].ciudades.push(p);
@@ -896,7 +995,7 @@ app.post("/paises/:pais/:provincia", (_req,_res) => {
 *           name: pais
 *       tags: 
 *         - post
-*       summary: Devuelve todos los paises y sus datos
+*       summary: Agrega un registro de tiempo con los datos del body
 *       requestBody:
 *         required: true
 *         content:
@@ -906,7 +1005,6 @@ app.post("/paises/:pais/:provincia", (_req,_res) => {
 *           
 *       responses:
 *         200:
-*           description: nigger
 *           content:
 *             application/json:
 *               schema:
@@ -918,18 +1016,18 @@ app.post("/paises/:pais/:provincia/:ciudad", (_req,_res) => {
   const p = new Tiempo(_req.body.fecha, _req.body.grados);
   const dirPais = paises.find((pa) => pa.nombre.toLowerCase() === _req.params.pais.toLowerCase())
   console.log(dirPais)
-  if(!dirPais) {return _res.status(400)}
+  if(!dirPais) {return _res.sendStatus(400)}
   const dirProvincia = dirPais.provincias.find((pa) => pa.nombre.toLowerCase()  === _req.params.provincia.toLowerCase() )
   console.log(dirProvincia)
   if(!dirProvincia) {return _res.status(400).send("no")}
   const ciudad = dirProvincia.ciudades.find((pa) => pa.nombre.toLowerCase()  === _req.params.ciudad.toLowerCase() )
   console.log(ciudad)
-  if(!ciudad) {return _res.status(400)}
+  if(!ciudad) {return _res.sendStatus(400)}
   if ( ciudad.registroDeTemperatura.find( (temp)=>temp.fecha===_req.body.fecha ) ){ return _res.status(400).send("Temperatura ya registrada") }
 
   paises[paises.indexOf(dirPais)].provincias[dirPais.provincias.indexOf( dirProvincia ) ].ciudades[dirProvincia.ciudades.indexOf(ciudad) ].registroDeTemperatura.push(p);
    _res.json(p);
-   return _res.status(200)   
+   return _res.sendStatus(200)   
 })
 
  /** 
@@ -945,20 +1043,19 @@ app.post("/paises/:pais/:provincia/:ciudad", (_req,_res) => {
 *         name: ciudad
 *     tags: 
 *       - get
-*     description: Devuelve todos los paises y sus datos
 *     responses:
 *       200:
-*         description: nigger
+*         description: Funcionamiento normal
 */
 
 app.get('/paises/:pais/:provincia/:ciudad', (_req,_res)=> { 
     if( !_req.params.pais || !_req.params.provincia||!_req.params.ciudad){  return _res.status(400).send("pogichamps")}
     
     const p = PaisByName(_req.params.pais); 
-    if (!p) return _res.status(400)
+    if (!p) return _res.sendStatus(400)
 
     const pr = p.getProvincia(_req.params.provincia) 
-    if (!pr) return _res.status(400)
+    if (!pr) return _res.sendStatus(400)
     
     _res.send(pr.ciudades.find((ciudad) => ciudad.nombre.toLowerCase() === _req.params.ciudad.toLowerCase()))
 } )
