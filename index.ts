@@ -160,9 +160,9 @@ app.use(express.json());
 *       tags: 
 *         - put
 *       summary: Devuelve todos los paises y sus datos
-*       requesBody:
+*       requestBody:
 *         required: true
-*         contents:
+*         content:
 *           application/json:
 *             schema:
 *                $ref: '#/components/schemas/Pais'
@@ -208,9 +208,9 @@ app.put( '/paises/:pais', (_req,_res)=> {
 *       tags: 
 *         - put
 *       summary: Devuelve todos los paises y sus datos
-*       requesBody:
+*       requestBody:
 *         required: true
-*         contents:
+*         content:
 *           application/json:
 *             schema:
 *                $ref: '#/components/schemas/Provincia'
@@ -250,9 +250,9 @@ app.put( '/paises/:pais', (_req,_res)=> {
 *       tags: 
 *         - put
 *       summary: Devuelve todos los paises y sus datos
-*       requesBody:
+*       requestBody:
 *         required: true
-*         contents:
+*         content:
 *           application/json:
 *             schema:
 *                $ref: '#/components/schemas/Ciudad'
@@ -303,9 +303,9 @@ app.put( '/paises/:pais', (_req,_res)=> {
 *       tags: 
 *         - patch
 *       summary: Devuelve todos los paises y sus datos
-*       requesBody:
+*       requestBody:
 *         required: true
-*         contents:
+*         content:
 *           application/json:
 *             schema:
 *                $ref: '#/components/schemas/Provincia'
@@ -350,9 +350,9 @@ app.put( '/paises/:pais', (_req,_res)=> {
 *       tags: 
 *         - patch
 *       summary: Devuelve todos los paises y sus datos
-*       requesBody:
+*       requestBody:
 *         required: true
-*         contents:
+*         content:
 *           application/json:
 *             schema:
 *                $ref: '#/components/schemas/Ciudad'
@@ -436,9 +436,9 @@ app.delete( '/paises', (_req,_res)=> {
 *       tags: 
 *         - delete
 *       summary: Devuelve todos los paises y sus datos
-*       requesBody:
+*       requestBody:
 *         required: true
-*         contents:
+*         content:
 *           application/json:
 *             schema:
 *               $ref: '#/components/schemas/Provincia'
@@ -456,9 +456,9 @@ app.delete( '/paises', (_req,_res)=> {
 
  app.delete( '/paises/:pais', (_req,_res)=> {
   const p = paises.find((pa) => pa.nombre.toLowerCase() === _req.params.pais.toLowerCase())
-  console.log( p )
+  console.log( _req.body )
   if (p){
-    const pr = p.provincias.find((pa) => { return pa.nombre === _req.body.nombre} )
+    const pr = p.provincias.find((pa) => { console.log(pa); return pa.nombre === _req.body.nombre} )
     console.log(pr)
     if(!pr){return _res.status(400).send("no bitches?")}
       const ent = paises[paises.indexOf(p)].provincias.find( ( prov )=> prov.nombre===_req.body.nombre )
@@ -490,9 +490,9 @@ app.delete( '/paises', (_req,_res)=> {
 *       tags: 
 *         - delete
 *       summary: Devuelve todos los paises y sus datos
-*       requesBody:
+*       requestBody:
 *         required: true
-*         contents:
+*         content:
 *           application/json:
 *             schema:
 *               $ref: '#/components/schemas/Ciudad'
@@ -638,9 +638,9 @@ async function main() {
 *       tags: 
 *         - patch
 *       summary: Devuelve todos los paises y sus datos
-*       requesBody:
+*       requestBody:
 *         required: true
-*         contents:
+*         content:
 *           application/json:
 *             schema:
 *                $ref: '#/components/schemas/Pais'
@@ -767,9 +767,9 @@ app.get( '/temperaturaPromedio/:pais', (_req,_res) => {
 *     tags: 
 *       - post
 *     summary: Devuelve todos los paises y sus datos
-*     requesBody:
+*     requestBody:
 *       required: true
-*       contents:
+*       content:
 *         application/json:
 *           schema:
 *              $ref: '#/components/schemas/Pais'
@@ -784,9 +784,14 @@ app.get( '/temperaturaPromedio/:pais', (_req,_res) => {
 */
 
 app.post("/paises", (_req,_res) => {
+  console.log( _req.body.nombre )
   const p = new Pais(_req.body.nombre, _req.body.provincias);
-  paises.push(p);
-  _res.json(p);   
+  const repetido = paises.find( (pa)=>pa.nombre===_req.body.nombre )
+  if(!repetido){ 
+    paises.push(p);
+    return _res.json(p);
+   }
+return _res.status(400).send("Ya existe ese pais")   
 })
 
 /** 
@@ -804,9 +809,9 @@ app.post("/paises", (_req,_res) => {
 *       tags: 
 *         - post
 *       summary: Devuelve todos los paises y sus datos
-*       requesBody:
+*       requestBody:
 *         required: true
-*         contents:
+*         content:
 *           application/json:
 *             schema:
 *                $ref: '#/components/schemas/Provincia'
@@ -825,6 +830,8 @@ app.post("/paises/:pais", (_req,_res) => {
   console.log(_req.body.nombre," ", _req.body.ciudades)
   const dirPais = paises.find((pa) => pa.nombre.toLowerCase() === _req.params.pais.toLowerCase())
   if(!dirPais) {return _res.status(400)}
+  const repetido = dirPais.provincias.find( (pa)=>pa.nombre===_req.body.nombre )
+  if(repetido){return _res.status(400).send("Ya existe la provincia")}
   console.log(p)
   paises[paises.indexOf(dirPais)].provincias.push(p)
   _res.json(p);   
@@ -851,9 +858,9 @@ app.post("/paises/:pais", (_req,_res) => {
 *       tags: 
 *         - post
 *       summary: Devuelve todos los paises y sus datos
-*       requesBody:
+*       requestBody:
 *         required: true
-*         contents:
+*         content:
 *           application/json:
 *             schema:
 *                $ref: '#/components/schemas/Ciudad'
@@ -873,6 +880,8 @@ app.post("/paises/:pais/:provincia", (_req,_res) => {
   if(!dirPais) {return _res.status(400)}
   const dirProvincia = dirPais.provincias.find((pa) => pa.nombre.toLowerCase() === _req.params.provincia.toLowerCase() )
   if(!dirProvincia) {return _res.status(400)}
+  if(dirProvincia.ciudades.find( (pa)=>pa.nombre===_req.body.nombre )) { return _res.status(400).send("ya existe la ciudad") }
+  
   paises[paises.indexOf(dirPais)].provincias[paises[paises.indexOf(dirPais)].provincias.indexOf( dirProvincia ) ].ciudades.push(p);
   _res.json(p);   
 })
@@ -888,9 +897,9 @@ app.post("/paises/:pais/:provincia", (_req,_res) => {
 *       tags: 
 *         - post
 *       summary: Devuelve todos los paises y sus datos
-*       requesBody:
+*       requestBody:
 *         required: true
-*         contents:
+*         content:
 *           application/json:
 *             schema:
 *                $ref: '#/components/schemas/Tiempo'
@@ -916,6 +925,8 @@ app.post("/paises/:pais/:provincia/:ciudad", (_req,_res) => {
   const ciudad = dirProvincia.ciudades.find((pa) => pa.nombre.toLowerCase()  === _req.params.ciudad.toLowerCase() )
   console.log(ciudad)
   if(!ciudad) {return _res.status(400)}
+  if ( ciudad.registroDeTemperatura.find( (temp)=>temp.fecha===_req.body.fecha ) ){ return _res.status(400).send("Temperatura ya registrada") }
+
   paises[paises.indexOf(dirPais)].provincias[dirPais.provincias.indexOf( dirProvincia ) ].ciudades[dirProvincia.ciudades.indexOf(ciudad) ].registroDeTemperatura.push(p);
    _res.json(p);
    return _res.status(200)   
