@@ -1,26 +1,3 @@
-/*
-
-Json para post en /paises/
-{
-  "nombre": "Rusia",
-  "provincias": [{"nombre": "Moscow","ciudades": [{"id": 2,"nombre": "Pueyrredon","registroDeTemperatura": [{"fecha": "2023-04-04T20:12:29.103Z", "grados": 0}]}]}]
-  
-}
-
-Json para Patch en /paises/:pais
-
-{
- "nombre":"Volga",
-  "ciudades": [ { "nombre": "Stalingrado", "registroDeTemperatura": [{
-    "fecha" : "9-11-1942", 
-        "grados" : -18  }] } ] 
-}
-
-*/
-
-
-
-
 import { Ciudad } from './Ciudad';
 import { Pais } from './Pais';
 import { Provincia } from './Provincia';
@@ -28,46 +5,10 @@ import { Tiempo } from './Tiempo';
 import express from 'express';
 import swaggerDocs from './swagger';
 
-function genCiudad(t1:number,t2:number,t3:number) {
-    let fecha = new Date()
-fecha.setMonth(3)
-fecha.setFullYear(2023)
-fecha.setDate(10)
-let genTiempo       = new Tiempo( fecha,t1 )
-let tiempos         = new Array<Tiempo>
-tiempos.push(genTiempo)
-fecha.setDate(20)
-fecha.setHours(10)
-genTiempo= new Tiempo( fecha,t2 )
-tiempos.push( genTiempo )
-fecha.setDate(4)
-genTiempo=new Tiempo(fecha,t3)
-tiempos.push( genTiempo )
-return tiempos
-}
-
-
 
 let ciudades:Array<Ciudad> = new Array<Ciudad>
-let gciudad= new Ciudad("CABA", [  (new Tiempo( new Date() , 30) ), (new Tiempo( new Date() , 32) ),(new Tiempo(new Date(),36) ) ] )
-
-ciudades.push(gciudad )
-gciudad= new Ciudad("Pueyrredon", [  (new Tiempo( new Date() , 10) ), (new Tiempo( new Date() , 20) ),(new Tiempo(new Date(),16) ) ] )
-ciudades.push(gciudad )
-
 let provins = new Array<Provincia>
-let genprovincia = new Provincia("BSAS",ciudades)
-provins.push(genprovincia)
-
-ciudades = new Array<Ciudad>
- gciudad= new Ciudad("CiudadDeCordoba", [  (new Tiempo( new Date() , 10) ), (new Tiempo( new Date() , 20) ),(new Tiempo(new Date(),16) ) ] )
- ciudades = new Array<Ciudad>
-gciudad= new Ciudad("Cosquin", [  (new Tiempo( new Date() , 10) ), (new Tiempo( new Date() , 20) ),(new Tiempo(new Date(),16) ) ] )
-ciudades.push(gciudad)
-genprovincia = new Provincia("Cordoba",ciudades)
-provins.push(genprovincia)
 let paises = new Array<Pais>
-paises.push(new Pais("Argentina",provins))
 
 /** 
  * @openapi
