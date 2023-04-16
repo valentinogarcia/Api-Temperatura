@@ -1,3 +1,5 @@
+//npm install express mongoose body-parser cors @types/express @types/mongoose @types/body-parser @types/cors
+
 import { Ciudad } from './Ciudad';
 import { Pais } from './Pais';
 import { Provincia } from './Provincia';
