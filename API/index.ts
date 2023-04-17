@@ -1,16 +1,182 @@
-//npm install express mongoose body-parser cors @types/express @types/mongoose @types/body-parser @types/cors
 
+
+
+import { ObjectId } from 'mongodb';
+import * as mongoDB from "mongodb";
+import * as dotenv from "dotenv";
 import { Ciudad } from './Ciudad';
 import { Pais } from './Pais';
 import { Provincia } from './Provincia';
 import { Tiempo } from './Tiempo';
-import express from 'express';
-import swaggerDocs from './swagger';
+import express, { json } from 'express';
 
+
+const DB_CONN_STRING="mongodb://localhost:27017"
+const DB_NAME="BaseDeTemperaturas"
+const COLLECTION_NAME="paises"
+
+const app = express();
+
+const port = 3000
+
+
+app.use(express.json());
+
+import swaggerDocs from './swagger';
+function genCiudad(t1:number,t2:number,t3:number) {
+let fecha = new Date()
+fecha.setMonth(3)
+fecha.setFullYear(2023)
+fecha.setDate(10)
+let genTiempo       = new Tiempo( fecha,t1 )
+let tiempos         = new Array<Tiempo>
+tiempos.push(genTiempo)
+fecha.setDate(20)
+fecha.setHours(10)
+genTiempo= new Tiempo( fecha,t2 )
+tiempos.push( genTiempo )
+fecha.setDate(4)
+genTiempo=new Tiempo(fecha,t3)
+tiempos.push( genTiempo )
+return tiempos
+}
+
+
+const collections: { paises?: mongoDB.Collection } = {}
+
+async function findPais(paises:Pais[],target:string) {
+ return paises.find( (pais)=> pais.nombre.toLowerCase() === target.toLocaleLowerCase() )
+}
+async function ConvertColectionToPais(db:mongoDB.Db): Promise<Pais[]> {
+  const col = await db.collection("paises").find().toArray();
+  let paises:Pais[]=[]
+  col.forEach( (obj)=>{ const pais:Pais = new Pais(obj.nombre,obj.provincias);paises.push(pais) } )
+return paises
+}
+
+async function findCiudad(provincia:Provincia,target:string) {
+  return provincia.ciudades.find( (ciudad)=> ciudad.nombre.toLowerCase()===target.toLowerCase() )
+}
+
+async function findProvincia(pais:Pais,target:string) {
+  return pais.provincias.find( ( provincia ) => provincia.nombre.toLowerCase()===target.toLowerCase() )  
+}
+
+async function main() {
+
+  async function connectToDatabase () {
+    // dotenv.config();
+  
+    const client: mongoDB.MongoClient = new mongoDB.MongoClient(DB_CONN_STRING);
+            
+    await client.connect();
+    
+    const db: mongoDB.Db = client.db(DB_NAME);
+    const paisesCollection: mongoDB.Collection = db.collection(COLLECTION_NAME);
+  collections.paises = paisesCollection;
+       
+         console.log(`Successfully connected to database: ${db.databaseName} and collection: ${paisesCollection.collectionName}`);
+         return db;
+  }
+  const db: mongoDB.Db = await connectToDatabase()
+  app.get( '/paises', async (_req,_res)=> 
+  { _res.status(200).send(await ConvertColectionToPais(db)) }
+  )
+  /** 
+* @openapi
+* paths:
+*   /paises/{pais}:
+*     patch:
+*       parameters:
+*         - in: path
+*           name: pais
+*           schema:
+*             type: string
+*             default: Argentina
+*           required: true
+*       tags: 
+*         - patch
+*       summary: Reemplaza los datos del pais por los valores que no sean undefined o false del body
+*       requestBody:
+*         required: true
+*         content:
+*           application/json:
+*             schema:
+*                $ref: '#/components/schemas/Pais'
+*           
+*       responses:
+*         200:
+*           content:
+*             application/json:
+*               schema:
+*                 $ref: '#/components/schemas/Pais'
+*/
+
+ app.patch( '/paises/:pais/', async (_req,_res)=> {
+  /*
+  const paises = ConvertColectionToPais( db )
+  ; const objetivo =  (await paises).find( (pais)=> pais.nombre === _req.params.pais )
+  _res.status(200).send(objetivo)   */
+  
+  
+  const pais = paises.find((pa) => pa.nombre.toLowerCase() === _req.params.pais.toLocaleLowerCase())
+  console.log( pais )
+  if (pais){
+      //const provincia = pais.provincias.find( (element)=> element.nombre==_req.params.provincia)
+        
+        if(_req.body.nombre  ) {
+          paises[paises.indexOf(pais)].nombre = _req.body.nombre;
+        }
+        console.log( _req.body.provincias )
+         if(_req.body.provincias==false || _req.body.provincias==undefined) {console.log("true");paises[paises.indexOf(pais)].provincias = _req.body.provincias;} 
+        return _res.send(  "Patcheado exitosamente ponele" )    
+    }
+   }
+
+)
+     async function calcGlobalSUM(grados:Array<number>)  {
+      if(grados.length<=0){return false}
+      let promedio:number  ; 
+      grados.forEach( (celsius)=> { if(!promedio){promedio=celsius.valueOf()}else{promedio=promedio.valueOf()+celsius.valueOf() }  }  )
+      return promedio!
+    }
+    async function getDegrees(  ) {
+      let grados:Array<number> = new Array<number>  
+      paises.forEach( (x)=>{x!.provincias.forEach( (provincia) => { provincia.ciudades.forEach( ( c )=>{ c.registroDeTemperatura.forEach( (regis)=>{ grados.push(regis.grados) } ) } ) }  )
+      if(!x) { return false} 
+     }
+     )
+     return grados
+    }
+     app.get( '/temperaturaPromedio/', async (_req,_res) => {
+      const grados = await getDegrees()
+      const promedio = await calcGlobalSUM( grados )
+      if(promedio) { return _res.json({ "promedio" : promedio.valueOf()/grados.length}) }return _res.sendStatus(400)} )
+     
+
+
+//function findnombre(nombre:string,object:object){ const p = paises.find((pa) => pa.nombre.toLowerCase() === nombre) }
 
 let ciudades:Array<Ciudad> = new Array<Ciudad>
+let gciudad= new Ciudad("CABA", [  (new Tiempo( new Date() , 30) ), (new Tiempo( new Date() , 32) ),(new Tiempo(new Date(),36) ) ] )
+
+ciudades.push(gciudad )
+gciudad= new Ciudad("Pueyrredon", [  (new Tiempo( new Date() , 10) ), (new Tiempo( new Date() , 20) ),(new Tiempo(new Date(),16) ) ] )
+ciudades.push(gciudad )
+
 let provins = new Array<Provincia>
+let genprovincia = new Provincia("BSAS",ciudades)
+provins.push(genprovincia)
+
+ciudades = new Array<Ciudad>
+ gciudad= new Ciudad("CiudadDeCordoba", [  (new Tiempo( new Date() , 10) ), (new Tiempo( new Date() , 20) ),(new Tiempo(new Date(),16) ) ] )
+ ciudades = new Array<Ciudad>
+gciudad= new Ciudad("Cosquin", [  (new Tiempo( new Date() , 10) ), (new Tiempo( new Date() , 20) ),(new Tiempo(new Date(),16) ) ] )
+ciudades.push(gciudad)
+genprovincia = new Provincia("Cordoba",ciudades)
+provins.push(genprovincia)
 let paises = new Array<Pais>
+paises.push(new Pais("Argentina",provins))
 
 /** 
  * @openapi
@@ -80,11 +246,6 @@ const p = paises.find((pa) => pa.nombre === _req.params.pais)
       _res.status(204).send()
 */
 
-const app = express();
-
-const port = 3000
-
-app.use(express.json());
 
 
 
@@ -167,7 +328,7 @@ app.put( '/paises/:pais', (_req,_res)=> {
 */
 
 
- app.put( '/paises/:pais/:provincia', (_req,_res)=> {
+ app.put( '/paises/:pais/provincias/:provincia', (_req,_res)=> {
     const p = paises.find((pa) => pa.nombre.toLowerCase() === _req.params.pais.toLowerCase())
     console.log( p )
     if (p){
@@ -212,7 +373,7 @@ app.put( '/paises/:pais', (_req,_res)=> {
 *                 $ref: '#/components/schemas/Ciudad'
 */
 
- app.put( '/paises/:pais/:provincia/:ciudad', (_req,_res)=> {
+ app.put( '/paises/:pais/provincias/:provincia/ciudades/:ciudad', (_req,_res)=> {
   const p = paises.find((pa) => pa.nombre.toLowerCase() === _req.params.pais.toLowerCase())
   console.log( p )
   if (p){
@@ -266,7 +427,7 @@ app.put( '/paises/:pais', (_req,_res)=> {
 */
 
  
- app.patch( '/paises/:pais/:provincia', (_req,_res)=> {
+ app.patch( '/paises/:pais/provincias/:provincia', (_req,_res)=> {
     const pais = paises.find((pa) => pa.nombre.toLowerCase() === _req.params.pais.toLowerCase())
     console.log( pais )
     if (pais){
@@ -316,7 +477,7 @@ app.put( '/paises/:pais', (_req,_res)=> {
 *                 $ref: '#/components/schemas/Ciudad'
 */
 
- app.patch( '/paises/:pais/:provincia/:ciudad', (_req,_res)=> {
+ app.patch( '/paises/:pais/provincias/:provincia/ciudades/:ciudad', (_req,_res)=> {
   const pais = paises.find((pa) => pa.nombre.toLowerCase() === _req.params.pais.toLowerCase())
   console.log( pais )
   if (pais){
@@ -370,7 +531,7 @@ app.put( '/paises/:pais', (_req,_res)=> {
 */
 
 
-app.patch( '/paises/:pais/:provincia/:ciudad/:fecha', (_req,_res)=> {
+app.patch( '/paises/:pais/provincias/:provincia/ciudades/:ciudad/fechas/:fecha', (_req,_res)=> {
   const pais = paises.find((pa) => pa.nombre.toLowerCase() === _req.params.pais.toLowerCase())
   console.log( pais )
   if (pais){
@@ -517,7 +678,7 @@ app.delete( '/paises', (_req,_res)=> {
 *       
 */
 
-app.delete( '/paises/:pais/:provincia', (_req,_res)=> {
+app.delete( '/paises/:pais/provincias/:provincia', (_req,_res)=> {
   const p = paises.find((pa) => pa.nombre.toLowerCase() === _req.params.pais.toLowerCase())
   console.log( p )
   if (p){
@@ -574,7 +735,7 @@ app.delete( '/paises/:pais/:provincia', (_req,_res)=> {
 *                 $ref: '#/components/schemas/Tiempo'
 *       
 */
-app.delete( '/paises/:pais/:provincia/:ciudad', (_req,_res)=> {
+app.delete( '/paises/:pais/provincias/:provincia/ciudades/:ciudad', (_req,_res)=> {
   const p = paises.find((pa) => pa.nombre.toLowerCase() === _req.params.pais)
   console.log( p )
   if (p){
@@ -606,8 +767,7 @@ app.delete( '/paises/:pais/:provincia/:ciudad', (_req,_res)=> {
 *         description: Funcionamiento normal
 */
 
-app.get( '/paises', (_req,_res)=> _res.status(200).send( paises )
- )
+
 
 
 function PaisByName(nombre: string) {
@@ -626,9 +786,9 @@ function PaisByName(nombre: string) {
 *       200:
 *         description: Funcionamiento normal
 */
- app.get( '/paises/:pais', (_req,_res)=> {
-
-    _res.send(  PaisByName(String(_req.params.pais)) )    
+ app.get( '/paises/:pais', async(_req,_res)=> {
+  const paises = await ConvertColectionToPais( db )
+  _res.status(200).send(await findPais(paises,_req.params.pais))   
      }
 
  )
@@ -649,14 +809,19 @@ function PaisByName(nombre: string) {
 *         description: Funcionamiento normal
 */
 
-app.get('/paises/:pais/:provincia', (_req,_res)=> 
-{   
+app.get('/paises/:pais/provincias/:provincia', async (_req,_res)=> 
+{  
+  const paises  = await ConvertColectionToPais(db)
+  const pais    = await findPais(paises,_req.params.pais)
+  if (!pais){ return _res.sendStatus(400) }
+   _res.status(200).send( await findProvincia( pais,_req.params.provincia ) )
+   /*
     if( !_req.params.pais || !_req.params.provincia){  return _res.status(400).send("pogichamps")}
     const element = PaisByName(_req.params.pais);
     if(!element){return _res.sendStatus(400)}
     console.log(element, element?.getProvincia(_req.params.provincia));
     
-    _res.send( element!.getProvincia( _req.params.provincia) )
+    _res.send( element!.getProvincia( _req.params.provincia) )*/
      } )
 
 /** 
@@ -669,74 +834,7 @@ app.get('/paises/:pais/:provincia', (_req,_res)=>
 *       200:
 *         description: Funcionamiento normal
 */
-async function main() {
-  /** 
-* @openapi
-* paths:
-*   /paises/{pais}:
-*     patch:
-*       parameters:
-*         - in: path
-*           name: pais
-*           schema:
-*             type: string
-*             default: Argentina
-*           required: true
-*       tags: 
-*         - patch
-*       summary: Reemplaza los datos del pais por los valores que no sean undefined o false del body
-*       requestBody:
-*         required: true
-*         content:
-*           application/json:
-*             schema:
-*                $ref: '#/components/schemas/Pais'
-*           
-*       responses:
-*         200:
-*           content:
-*             application/json:
-*               schema:
-*                 $ref: '#/components/schemas/Pais'
-*/
 
- app.patch( '/paises/:pais/', async (_req,_res)=> {
-  
-  const pais = paises.find((pa) => pa.nombre.toLowerCase() === _req.params.pais.toLocaleLowerCase())
-  console.log( pais )
-  if (pais){
-      //const provincia = pais.provincias.find( (element)=> element.nombre==_req.params.provincia)
-        
-        if(_req.body.nombre  ) {
-          paises[paises.indexOf(pais)].nombre = _req.body.nombre;
-        }
-        console.log( _req.body.provincias )
-         if(_req.body.provincias==false || _req.body.provincias==undefined) {console.log("true");paises[paises.indexOf(pais)].provincias = _req.body.provincias;} 
-        return _res.send(  "Patcheado exitosamente ponele" )    
-    }
-    _res.sendStatus(400)   
-   }
-
-)
-     async function calcGlobalSUM(grados:Array<number>)  {
-      if(grados.length<=0){return false}
-      let promedio:number  ; 
-      grados.forEach( (celsius)=> { if(!promedio){promedio=celsius.valueOf()}else{promedio=promedio.valueOf()+celsius.valueOf() }  }  )
-      return promedio!
-    }
-    async function getDegrees(  ) {
-      let grados:Array<number> = new Array<number>  
-      paises.forEach( (x)=>{x!.provincias.forEach( (provincia) => { provincia.ciudades.forEach( ( c )=>{ c.registroDeTemperatura.forEach( (regis)=>{ grados.push(regis.grados) } ) } ) }  )
-      if(!x) { return false} 
-     }
-     )
-     return grados
-    }
-     app.get( '/temperaturaPromedio/', async (_req,_res) => {
-      const grados = await getDegrees()
-      const promedio = await calcGlobalSUM( grados )
-      if(promedio) { return _res.json({ "promedio" : promedio.valueOf()/grados.length}) }return _res.sendStatus(400)} )
-     } 
     
     
     
@@ -785,7 +883,7 @@ app.get( '/temperaturaPromedio/:pais', (_req,_res) => {
 */
 
 
- app.get( '/temperaturaPromedio/:pais/:provincia', (_req,_res) => {
+ app.get( '/temperaturaPromedio/:pais/provincias/:provincia', (_req,_res) => {
   if (!_req.params.pais) {
     return _res.status(400).send("te falto el pais capo")
   }
@@ -827,12 +925,13 @@ app.get( '/temperaturaPromedio/:pais', (_req,_res) => {
 *               $ref: '#/components/schemas/Pais'
 */
 
-app.post("/paises", (_req,_res) => {
+app.post("/paises", async (_req,_res) => {
   console.log( _req.body.nombre )
   const p = new Pais(_req.body.nombre, _req.body.provincias);
+  const paises = await ConvertColectionToPais( db );
   const repetido = paises.find( (pa)=>pa.nombre===_req.body.nombre )
   if(!repetido){ 
-    paises.push(p);
+    //db.collection("paises").aggregate()
     return _res.json(p);
    }
 return _res.status(400).send("Ya existe ese pais")   
@@ -916,7 +1015,7 @@ app.post("/paises/:pais", (_req,_res) => {
 *                 $ref: '#/components/schemas/Ciudad'
 */
 
-app.post("/paises/:pais/:provincia", (_req,_res) => {
+app.post("/paises/:pais/provincias/:provincia", (_req,_res) => {
   const p = new Ciudad(_req.body.nombre, _req.body.registroDeTemperatura);
   const dirPais = paises.find((pa) => pa.nombre.toLowerCase() === _req.params.pais.toLowerCase())
   if(!dirPais) {return _res.sendStatus(400)}
@@ -954,7 +1053,7 @@ app.post("/paises/:pais/:provincia", (_req,_res) => {
 *                 $ref: '#/components/schemas/Tiempo'
 */
 
-app.post("/paises/:pais/:provincia/:ciudad", (_req,_res) => {
+app.post("/paises/:pais/provincias/:provincia/ciudades/:ciudad", (_req,_res) => {
   console.log("entre")
   const p = new Tiempo(_req.body.fecha, _req.body.grados);
   const dirPais = paises.find((pa) => pa.nombre.toLowerCase() === _req.params.pais.toLowerCase())
@@ -973,7 +1072,7 @@ app.post("/paises/:pais/:provincia/:ciudad", (_req,_res) => {
    return _res.sendStatus(200)   
 })
 
- /** 
+/** 
 * @openapi
 * /paises/{pais}/{provincia}/{ciudad}:
 *   get:
@@ -991,24 +1090,23 @@ app.post("/paises/:pais/:provincia/:ciudad", (_req,_res) => {
 *         description: Funcionamiento normal
 */
 
-app.get('/paises/:pais/:provincia/:ciudad', (_req,_res)=> { 
-    if( !_req.params.pais || !_req.params.provincia||!_req.params.ciudad){  return _res.status(400).send("pogichamps")}
-    
-    const p = PaisByName(_req.params.pais); 
-    if (!p) return _res.sendStatus(400)
-
-    const pr = p.getProvincia(_req.params.provincia) 
-    if (!pr) return _res.sendStatus(400)
-    
-    _res.send(pr.ciudades.find((ciudad) => ciudad.nombre.toLowerCase() === _req.params.ciudad.toLowerCase()))
+app.get('/paises/:pais/provincias/:provincia/ciudades/:ciudad', async (_req,_res)=> { 
+  const paises  = await ConvertColectionToPais(db)
+  const pais    = await findPais(paises,_req.params.pais)
+  if(!pais){return _res.sendStatus(400)}
+  const provincia = await findProvincia( pais,_req.params.provincia )
+  if(provincia) return _res.status(200).send( await findCiudad( provincia,_req.params.ciudad ) )
+  return _res.sendStatus(400)
 } )
 
     
 
- app.listen(port, () => {console.log(`Escuchando en el puerto ${port}!`); swaggerDocs(app,port)  });
+ app.listen(port, () => {console.log(`Escuchando en el puerto ${port}!`); 
+ swaggerDocs(app,port)  
+});
  
 
-
+} 
 
 
  main()
