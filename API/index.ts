@@ -51,7 +51,7 @@ async function ConvertColectionToPais(db:mongoDB.Db): Promise<Pais[]> {
   const col = await db.collection("paises").find().toArray();
   let paises:Pais[]=[]
   col.forEach( (obj)=>{ const pais:Pais = new Pais(obj.nombre,obj.provincias);paises.push(pais) } )
-return paises
+  return paises
 }
 
 async function findCiudad(provincia:Provincia,target:string) {
@@ -73,16 +73,19 @@ async function main() {
     
     const db: mongoDB.Db = client.db(DB_NAME);
     const paisesCollection: mongoDB.Collection = db.collection(COLLECTION_NAME);
-  collections.paises = paisesCollection;
+    collections.paises = paisesCollection;
        
-         console.log(`Successfully connected to database: ${db.databaseName} and collection: ${paisesCollection.collectionName}`);
-         return db;
+    console.log(`Successfully connected to database: ${db.databaseName} and collection: ${paisesCollection.collectionName}`);
+    return db;
   }
+
   const db: mongoDB.Db = await connectToDatabase()
   app.get( '/paises', async (_req,_res)=> 
-  { _res.status(200).send(await ConvertColectionToPais(db)) }
+    { _res.status(200).send(await ConvertColectionToPais(db)) }
   )
-  /** 
+
+
+/** 
 * @openapi
 * paths:
 *   /paises/{pais}:
@@ -112,46 +115,46 @@ async function main() {
 *                 $ref: '#/components/schemas/Pais'
 */
 
- app.patch( '/paises/:pais/', async (_req,_res)=> {
+  app.patch( '/paises/:pais/', async (_req,_res)=> {
   /*
   const paises = ConvertColectionToPais( db )
   ; const objetivo =  (await paises).find( (pais)=> pais.nombre === _req.params.pais )
   _res.status(200).send(objetivo)   */
   
   
-  const pais = paises.find((pa) => pa.nombre.toLowerCase() === _req.params.pais.toLocaleLowerCase())
-  console.log( pais )
-  if (pais){
+    const pais = paises.find((pa) => pa.nombre.toLowerCase() === _req.params.pais.toLocaleLowerCase())
+    console.log( pais )
+    if (pais){
       //const provincia = pais.provincias.find( (element)=> element.nombre==_req.params.provincia)
         
-        if(_req.body.nombre  ) {
-          paises[paises.indexOf(pais)].nombre = _req.body.nombre;
-        }
-        console.log( _req.body.provincias )
-         if(_req.body.provincias==false || _req.body.provincias==undefined) {console.log("true");paises[paises.indexOf(pais)].provincias = _req.body.provincias;} 
-        return _res.send(  "Patcheado exitosamente ponele" )    
+      if(_req.body.nombre  ) {
+        paises[paises.indexOf(pais)].nombre = _req.body.nombre;
+      }
+      console.log( _req.body.provincias )
+      if(_req.body.provincias==false || _req.body.provincias==undefined) {console.log("true");paises[paises.indexOf(pais)].provincias = _req.body.provincias;} 
+      return _res.send(  "Patcheado exitosamente ponele" )    
     }
-   }
+  })
 
-)
-     async function calcGlobalSUM(grados:Array<number>)  {
-      if(grados.length<=0){return false}
-      let promedio:number  ; 
-      grados.forEach( (celsius)=> { if(!promedio){promedio=celsius.valueOf()}else{promedio=promedio.valueOf()+celsius.valueOf() }  }  )
-      return promedio!
-    }
-    async function getDegrees(  ) {
-      let grados:Array<number> = new Array<number>  
-      paises.forEach( (x)=>{x!.provincias.forEach( (provincia) => { provincia.ciudades.forEach( ( c )=>{ c.registroDeTemperatura.forEach( (regis)=>{ grados.push(regis.grados) } ) } ) }  )
+  async function calcGlobalSUM(grados:Array<number>)  {
+    if(grados.length<=0){return false}
+    let promedio:number  ; 
+    grados.forEach( (celsius)=> { if(!promedio){promedio=celsius.valueOf()}else{promedio=promedio.valueOf()+celsius.valueOf() }  }  )
+    return promedio!
+  }
+  async function getDegrees(  ) {
+    let grados:Array<number> = new Array<number>  
+    paises.forEach( (x)=>{x!.provincias.forEach( (provincia) => { provincia.ciudades.forEach( ( c )=>{ c.registroDeTemperatura.forEach( (regis)=>{ grados.push(regis.grados) } ) } ) }  )
       if(!x) { return false} 
-     }
-     )
-     return grados
-    }
-     app.get( '/temperaturaPromedio/', async (_req,_res) => {
-      const grados = await getDegrees()
-      const promedio = await calcGlobalSUM( grados )
-      if(promedio) { return _res.json({ "promedio" : promedio.valueOf()/grados.length}) }return _res.sendStatus(400)} )
+    })
+    return grados
+  }
+     
+  app.get( '/temperaturaPromedio/', async (_req,_res) => {
+    const grados = await getDegrees()
+    const promedio = await calcGlobalSUM( grados )
+    if(promedio) { return _res.json({ "promedio" : promedio.valueOf()/grados.length}) }return _res.sendStatus(400)
+  })
      
 
 
@@ -169,8 +172,8 @@ let genprovincia = new Provincia("BSAS",ciudades)
 provins.push(genprovincia)
 
 ciudades = new Array<Ciudad>
- gciudad= new Ciudad("CiudadDeCordoba", [  (new Tiempo( new Date() , 10) ), (new Tiempo( new Date() , 20) ),(new Tiempo(new Date(),16) ) ] )
- ciudades = new Array<Ciudad>
+gciudad= new Ciudad("CiudadDeCordoba", [  (new Tiempo( new Date() , 10) ), (new Tiempo( new Date() , 20) ),(new Tiempo(new Date(),16) ) ] )
+ciudades = new Array<Ciudad>
 gciudad= new Ciudad("Cosquin", [  (new Tiempo( new Date() , 10) ), (new Tiempo( new Date() , 20) ),(new Tiempo(new Date(),16) ) ] )
 ciudades.push(gciudad)
 genprovincia = new Provincia("Cordoba",ciudades)
@@ -280,16 +283,14 @@ const p = paises.find((pa) => pa.nombre === _req.params.pais)
 */
 
 app.put( '/paises/:pais', (_req,_res)=> {
-    const p = paises.find((pa) => pa.nombre.toLowerCase() === _req.params.pais.toLowerCase())
-    console.log( p )
-    if (p){
-        paises[paises.indexOf(p)] =_req.body
-       return _res.send(  "Putteado exitosamente ponele" )   
-      }
-      _res.sendStatus(400)    
-     }
-
- )
+  const p = paises.find((pa) => pa.nombre.toLowerCase() === _req.params.pais.toLowerCase())
+  console.log( p )
+  if (p){
+    paises[paises.indexOf(p)] =_req.body
+    return _res.send(  "Putteado exitosamente ponele" )   
+  }
+  _res.sendStatus(400)    
+})
 
  /** 
 * @openapi
@@ -328,20 +329,18 @@ app.put( '/paises/:pais', (_req,_res)=> {
 */
 
 
- app.put( '/paises/:pais/provincias/:provincia', (_req,_res)=> {
-    const p = paises.find((pa) => pa.nombre.toLowerCase() === _req.params.pais.toLowerCase())
-    console.log( p )
-    if (p){
-      const provincia = paises[paises.indexOf(p)].provincias.find((pa) => pa.nombre.toLowerCase() === _req.params.provincia.toLowerCase()  )
-      if(!provincia){ return _res.sendStatus(400) }
-      const x = paises[paises.indexOf(p)].provincias.indexOf( provincia )
-      paises[paises.indexOf(p)].provincias[ x ] =_req.body
-      return _res.send(  "Putteado exitosamente ponele" )   
-      }
-    _res.sendStatus(400)    
-     }
-
- )
+app.put( '/paises/:pais/provincias/:provincia', (_req,_res)=> {
+  const p = paises.find((pa) => pa.nombre.toLowerCase() === _req.params.pais.toLowerCase())
+  console.log( p )
+  if (p){
+    const provincia = paises[paises.indexOf(p)].provincias.find((pa) => pa.nombre.toLowerCase() === _req.params.provincia.toLowerCase()  )
+    if(!provincia){ return _res.sendStatus(400) }
+    const x = paises[paises.indexOf(p)].provincias.indexOf( provincia )
+    paises[paises.indexOf(p)].provincias[ x ] =_req.body
+    return _res.send(  "Putteado exitosamente ponele" )   
+  }
+  _res.sendStatus(400)    
+})
 
  /** 
 * @openapi
@@ -373,7 +372,7 @@ app.put( '/paises/:pais', (_req,_res)=> {
 *                 $ref: '#/components/schemas/Ciudad'
 */
 
- app.put( '/paises/:pais/provincias/:provincia/ciudades/:ciudad', (_req,_res)=> {
+app.put( '/paises/:pais/provincias/:provincia/ciudades/:ciudad', (_req,_res)=> {
   const p = paises.find((pa) => pa.nombre.toLowerCase() === _req.params.pais.toLowerCase())
   console.log( p )
   if (p){
@@ -382,13 +381,10 @@ app.put( '/paises/:pais', (_req,_res)=> {
     const v = paises.indexOf(p)
     const x = paises[v].provincias.indexOf(provincia)
     const y = paises[v].provincias.find( (pa) => pa.nombre.toLowerCase() === _req.params.ciudad.toLowerCase() )
-
     paises[v].provincias[ x ].ciudades =_req.body;    return _res.send(  "Putteado exitosamente ponele" )       
   }
   _res.sendStatus(  400 )    
-   }
-
-)
+})
 
 /** 
 * @openapi
@@ -427,23 +423,20 @@ app.put( '/paises/:pais', (_req,_res)=> {
 */
 
  
- app.patch( '/paises/:pais/provincias/:provincia', (_req,_res)=> {
-    const pais = paises.find((pa) => pa.nombre.toLowerCase() === _req.params.pais.toLowerCase())
-    console.log( pais )
-    if (pais){
-        const provincia = pais.provincias.find( (element)=> element.nombre==_req.params.provincia)
-          if(!provincia){return _res.sendStatus(400) }
-          if(_req.body.nombre  ) {
-            pais.provincias[pais.provincias.indexOf(provincia)].nombre = _req.body.nombre;
-          }
-           if(_req.body.ciudades==false||_req.body.ciudades==undefined) {pais.provincias[pais.provincias.indexOf(provincia)].ciudades = _req.body.ciudades;} 
-           return _res.send(  "Patcheado exitosamente ponele" ) 
-          
-      }
-      _res.sendStatus(400)
-     }
-
- )
+app.patch( '/paises/:pais/provincias/:provincia', (_req,_res)=> {
+  const pais = paises.find((pa) => pa.nombre.toLowerCase() === _req.params.pais.toLowerCase())
+  console.log( pais )
+  if (pais){
+    const provincia = pais.provincias.find( (element)=> element.nombre==_req.params.provincia)
+    if(!provincia){return _res.sendStatus(400) }
+    if(_req.body.nombre  ) {
+      pais.provincias[pais.provincias.indexOf(provincia)].nombre = _req.body.nombre;
+    }
+    if(_req.body.ciudades==false||_req.body.ciudades==undefined) {pais.provincias[pais.provincias.indexOf(provincia)].ciudades = _req.body.ciudades;} 
+    return _res.send(  "Patcheado exitosamente ponele" )       
+  }
+  _res.sendStatus(400)
+})
 
  
 
@@ -477,25 +470,22 @@ app.put( '/paises/:pais', (_req,_res)=> {
 *                 $ref: '#/components/schemas/Ciudad'
 */
 
- app.patch( '/paises/:pais/provincias/:provincia/ciudades/:ciudad', (_req,_res)=> {
+app.patch( '/paises/:pais/provincias/:provincia/ciudades/:ciudad', (_req,_res)=> {
   const pais = paises.find((pa) => pa.nombre.toLowerCase() === _req.params.pais.toLowerCase())
   console.log( pais )
   if (pais){
-      const provincia = pais.provincias.find( (element)=> element.nombre.toLowerCase()==_req.params.provincia.toLowerCase())
-        if(!provincia){return _res.sendStatus(400) }
-        const ciudad = provincia.ciudades.find((element)=> element.nombre.toLowerCase()==_req.params.ciudad.toLowerCase())
-        if(!ciudad){return _res.sendStatus(400)}
-        if(_req.body.nombre  ) {
-          pais.provincias[pais.provincias.indexOf(provincia)].ciudades[provincia.ciudades.indexOf(ciudad)].nombre = _req.body.nombre;
-        }
-
-         if(_req.body.registroDeTemperatura==false || _req.body.registroDeTemperatura==undefined) {paises[paises.indexOf(pais)].provincias[pais.provincias.indexOf(provincia)].ciudades[provincia.ciudades.indexOf(ciudad)].registroDeTemperatura = _req.body.registroDeTemperatura;} 
-         return _res.send(  "Patcheado exitosamente ponele" ) 
+    const provincia = pais.provincias.find( (element)=> element.nombre.toLowerCase()==_req.params.provincia.toLowerCase())
+    if(!provincia){return _res.sendStatus(400) }
+    const ciudad = provincia.ciudades.find((element)=> element.nombre.toLowerCase()==_req.params.ciudad.toLowerCase())
+    if(!ciudad){return _res.sendStatus(400)}
+    if(_req.body.nombre  ) {
+      pais.provincias[pais.provincias.indexOf(provincia)].ciudades[provincia.ciudades.indexOf(ciudad)].nombre = _req.body.nombre;
     }
+    if(_req.body.registroDeTemperatura==false || _req.body.registroDeTemperatura==undefined) {paises[paises.indexOf(pais)].provincias[pais.provincias.indexOf(provincia)].ciudades[provincia.ciudades.indexOf(ciudad)].registroDeTemperatura = _req.body.registroDeTemperatura;} 
+    return _res.send(  "Patcheado exitosamente ponele" ) 
+  }
   _res.sendStatus(400)    
-   }
-
-)
+})
 
 
  /** 
@@ -535,26 +525,23 @@ app.patch( '/paises/:pais/provincias/:provincia/ciudades/:ciudad/fechas/:fecha',
   const pais = paises.find((pa) => pa.nombre.toLowerCase() === _req.params.pais.toLowerCase())
   console.log( pais )
   if (pais){
-      const provincia = pais.provincias.find( (element)=> element.nombre==_req.params.provincia)
-        if(!provincia){return _res.status(400).send("No province?") }
-        const ciudad = provincia.ciudades.find((element)=> element.nombre.toLowerCase()==_req.params.ciudad.toLowerCase())
-        if(!ciudad){return _res.status(400).send("no city?")}
-        const f = ciudad.registroDeTemperatura.find( (pa) => pa.fecha.toString() === _req.params.fecha )
-        if(!f){return _res.status(400).send("no fecha?")}
-        if(_req.body.fecha  ) {
-          pais.provincias[pais.provincias.indexOf(provincia)].ciudades[provincia.ciudades.indexOf(ciudad)].registroDeTemperatura[ciudad.registroDeTemperatura.indexOf(f)].fecha = new Date(_req.body.fecha);
-        }
-         if(_req.body.grados) {pais.provincias[pais.provincias.indexOf(provincia)].ciudades[provincia.ciudades.indexOf(ciudad)] = _req.body.grados;} 
-         return _res.send(  "Patcheado exitosamente ponele" ) 
+    const provincia = pais.provincias.find( (element)=> element.nombre==_req.params.provincia)
+    if(!provincia){return _res.status(400).send("No province?") }
+    const ciudad = provincia.ciudades.find((element)=> element.nombre.toLowerCase()==_req.params.ciudad.toLowerCase())
+    if(!ciudad){return _res.status(400).send("no city?")}
+    const f = ciudad.registroDeTemperatura.find( (pa) => pa.fecha.toString() === _req.params.fecha )
+    if(!f){return _res.status(400).send("no fecha?")}
+    if(_req.body.fecha  ) {
+      pais.provincias[pais.provincias.indexOf(provincia)].ciudades[provincia.ciudades.indexOf(ciudad)].registroDeTemperatura[ciudad.registroDeTemperatura.indexOf(f)].fecha = new Date(_req.body.fecha);
     }
-    _res.sendStatus(  400 )    
+    if(_req.body.grados) {pais.provincias[pais.provincias.indexOf(provincia)].ciudades[provincia.ciudades.indexOf(ciudad)] = _req.body.grados;} 
+    return _res.send(  "Patcheado exitosamente ponele" ) 
   }
-
-)
-
-
+  _res.sendStatus(  400 )    
+})
 
 app.get('/', (_req , _res) => _res.send('Bienvenido a mi API REST!'));
+
 /** 
 * @openapi
 * paths:
@@ -579,16 +566,15 @@ app.get('/', (_req , _res) => _res.send('Bienvenido a mi API REST!'));
 *       
 */
 app.delete( '/paises', (_req,_res)=> {
-    const p = paises.find((pa) => pa.nombre.toLowerCase() === _req.body.nombre.toLowerCase())
-    console.log( p )
-    if (p){
-        paises.splice(paises.indexOf(p))
-        return _res.send(  "Borrado exitosamente ponele" )   
-      }
-    _res.sendStatus(400)    
-     }
+  const p = paises.find((pa) => pa.nombre.toLowerCase() === _req.body.nombre.toLowerCase())
+  console.log( p )
+  if (p){
+    paises.splice(paises.indexOf(p))
+    return _res.send(  "Borrado exitosamente ponele" )   
+  }
+  _res.sendStatus(400)    
+})
 
- )
  /** 
 * @openapi
 * paths:
@@ -620,7 +606,6 @@ app.delete( '/paises', (_req,_res)=> {
 *       
 */
 
-
  app.delete( '/paises/:pais', (_req,_res)=> {
   const p = paises.find((pa) => pa.nombre.toLowerCase() === _req.params.pais.toLowerCase())
   console.log( _req.body )
@@ -628,18 +613,16 @@ app.delete( '/paises', (_req,_res)=> {
     const pr = p.provincias.find((pa) => { console.log(pa); return pa.nombre === _req.body.nombre} )
     console.log(pr)
     if(!pr){return _res.status(400).send("no saturado?")}
-      const ent = paises[paises.indexOf(p)].provincias.find( ( prov )=> prov.nombre===_req.body.nombre )
-      if(!ent){return _res.sendStatus(400)}
-      const posDelete = paises[paises.indexOf(p)].provincias.indexOf(ent)
-      //if(!posDelete){return  _res.status(400).send(" no array? ") }
-      //delete paises[paises.indexOf(p)].provincias[p.provincias.indexOf(pr)]
-      paises[paises.indexOf(p)].provincias.splice( posDelete,1 )
-      return _res.send(  "Borrado exitosamente ponele" )   
-    }
+    const ent = paises[paises.indexOf(p)].provincias.find( ( prov )=> prov.nombre===_req.body.nombre )
+    if(!ent){return _res.sendStatus(400)}
+    const posDelete = paises[paises.indexOf(p)].provincias.indexOf(ent)
+    //if(!posDelete){return  _res.status(400).send(" no array? ") }
+    //delete paises[paises.indexOf(p)].provincias[p.provincias.indexOf(pr)]
+    paises[paises.indexOf(p)].provincias.splice( posDelete,1 )
+    return _res.send(  "Borrado exitosamente ponele" )   
+  }
   _res.sendStatus( 400 )    
-   }
-
-)
+})
 
  /** 
 * @openapi
@@ -684,15 +667,13 @@ app.delete( '/paises/:pais/provincias/:provincia', (_req,_res)=> {
   if (p){
     const pr = p.provincias.find((pa) => pa.nombre.toLowerCase() === _req.params.provincia.toLowerCase())
     if(!pr){return _res.status(400).send("no apache2?")}
-      const ciudad = pr.ciudades.find( (pa)=> pa.nombre.toLowerCase()=== _req.body.nombre.toLowerCase() )
-      if(!ciudad){return  _res.status(400).send(" no array? ") }
-      const posDelete = pr.ciudades.indexOf(ciudad)
-      paises[paises.indexOf(p)].provincias[p.provincias.indexOf(pr)].ciudades.splice( posDelete,1 );    return _res.send(  "Borrado exitosamente ponele" )   
-    }
+    const ciudad = pr.ciudades.find( (pa)=> pa.nombre.toLowerCase()=== _req.body.nombre.toLowerCase() )
+    if(!ciudad){return  _res.status(400).send(" no array? ") }
+    const posDelete = pr.ciudades.indexOf(ciudad)
+    paises[paises.indexOf(p)].provincias[p.provincias.indexOf(pr)].ciudades.splice( posDelete,1 );    return _res.send(  "Borrado exitosamente ponele" )   
+  }
   _res.sendStatus(  400 )    
-   }
-
-)
+})
  /** 
 * @openapi
 * paths:
@@ -926,15 +907,10 @@ app.get( '/temperaturaPromedio/:pais', (_req,_res) => {
 */
 
 app.post("/paises", async (_req,_res) => {
-  console.log( _req.body.nombre )
-  const p = new Pais(_req.body.nombre, _req.body.provincias);
-  const paises = await ConvertColectionToPais( db );
-  const repetido = paises.find( (pa)=>pa.nombre===_req.body.nombre )
-  if(!repetido){ 
-    //db.collection("paises").aggregate()
-    return _res.json(p);
-   }
-return _res.status(400).send("Ya existe ese pais")   
+  const paises = await ConvertColectionToPais(db)
+  const x = _req.body as Pais
+  const resultado = await collections.paises?.insertOne(Pais)
+  //const prueba = (await db.collection("paises").find().toArray()).push()
 })
 
 /** 
