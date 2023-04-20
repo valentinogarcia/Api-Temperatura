@@ -1,372 +1,1116 @@
-/*
 
-Json para post en /paises/
-{
-  "nombre": "Rusia",
-  "provincias": [{"nombre": "Moscow","ciudades": [{"id": 2,"nombre": "Pueyrredon","registroDeTemperatura": [{"fecha": "2023-04-04T20:12:29.103Z", "grados": 0}]}]}]
-  
-}
-
-Json para Patch en /paises/:pais
-
-{
- "nombre":"Volga",
-  "ciudades": [ { "nombre": "Stalingrado", "registroDeTemperatura": [{
-    "fecha" : "9-11-1942", 
-        "grados" : -18  }] } ] 
-}
-
-*/
-
-
-
-
+import { ObjectId } from 'mongodb';
+import * as mongoDB from "mongodb";
 import { Ciudad } from './Ciudad';
 import { Pais } from './Pais';
 import { Provincia } from './Provincia';
 import { Tiempo } from './Tiempo';
-import express from 'express';
+import express, { json } from 'express';
+import swaggerDocs from './swagger';
+
+const DB_CONN_STRING="mongodb://localhost:27017"
+const DB_NAME="BaseDeTemperaturas"
+const COLLECTION_NAME="paises"
+
+const app = express();
+
+const port = 3000
 
 
-async function genCiudad(t1:number,t2:number,t3:number) {
-  let fecha = new Date()
-fecha.setFullYear(1989)
-fecha.setDate(1)
-let genTiempo       = new Tiempo( new Date(),t1 )
-let tiempos         = new Array<Tiempo>
-tiempos.push(genTiempo)
-setTimeout(() => {
-  genTiempo= new Tiempo( new Date(),t2 )
-  tiempos.push( genTiempo )
-}, 50000);
-
-setTimeout(() => {
-  genTiempo= new Tiempo( new Date(),t2 )
-  tiempos.push( genTiempo )
-}, 50000);
-
-setTimeout(() => {
-  genTiempo= new Tiempo( fecha,t3 )
-  tiempos.push( genTiempo )
-}, 50000);
+app.use(express.json());
 
 
-return tiempos
+
+
+
+const collections: { paises?: mongoDB.Collection } = {}
+async function findPais(paises:Pais[],target:string) {
+ return paises.find( (pais)=> pais.nombre.toLowerCase() === target.toLocaleLowerCase() )
+}
+async function ConvertColectionToPais(db:mongoDB.Db): Promise<Pais[]> {
+  const col = await db.collection("paises").find().toArray();
+  let paises:Pais[]=[]
+  col.forEach( (obj)=>{ const pais:Pais = new Pais(obj.nombre,obj.provincias);paises.push(pais) } )
+  return paises
 }
 
+async function ConvertDocumentToPais(document:mongoDB.WithId<mongoDB.BSON.Document>) :Promise<Pais>{
+  let pais:Pais = new Pais( document.nombre,document.provincias )
+  return pais
+}
+async function getPais(target:string ) {
+  const doc = await collections.paises?.findOne( {nombre: target} )
+  let pais = ConvertDocumentToPais(doc!)  
+  return pais
+}
+
+async function findCiudad(provincia:Provincia,target:string) {
+  return provincia.ciudades.find( (ciudad)=> ciudad.nombre.toLowerCase()===target.toLowerCase() )
+}
+
+async function findProvincia(pais:Pais,target:string) {
+  return pais.provincias.find( ( provincia ) => provincia.nombre.toLowerCase()===target.toLowerCase() )  
+}
+
+
 async function main() {
+
+  async function connectToDatabase () {
+    // dotenv.config();
   
-  
-let tiempos = await genCiudad(30,32,36)
-let gciudad= new Ciudad("CABA",tiempos)
-let ciudades = new Array<Ciudad>
-tiempos= await genCiudad(20,21,15)
-ciudades.push(new Ciudad("Pueyrredon",tiempos) )
-tiempos=await genCiudad( 40,35,37 )
-ciudades.push(new Ciudad("Mar Del Plata",tiempos) )
+    const client: mongoDB.MongoClient = new mongoDB.MongoClient(DB_CONN_STRING);
+            
+    await client.connect();
+    
+    const db: mongoDB.Db = client.db(DB_NAME);
+    const paisesCollection: mongoDB.Collection = db.collection(COLLECTION_NAME);
+    collections.paises = paisesCollection;
+       
+    console.log(`Successfully connected to database: ${db.databaseName} and collection: ${paisesCollection.collectionName}`);
+    return db;
+  }
+
+  const db: mongoDB.Db = await connectToDatabase()
+  app.get( '/paises', async (_req,_res)=> 
+    { _res.status(200).send(await ConvertColectionToPais(db)) }
+  )
+
+
+/** 
+* @openapi
+* paths:
+*   /paises/{pais}:
+*     patch:
+*       parameters:
+*         - in: path
+*           name: pais
+*           schema:
+*             type: string
+*             default: Argentina
+*           required: true
+*       tags: 
+*         - patch
+*       summary: Reemplaza los datos del pais por los valores que no sean undefined o false del body
+*       requestBody:
+*         required: true
+*         content:
+*           application/json:
+*             schema:
+*                $ref: '#/components/schemas/Pais'
+*           
+*       responses:
+*         200:
+*           content:
+*             application/json:
+*               schema:
+*                 $ref: '#/components/schemas/Pais'
+*/
+
+  app.patch( '/paises/:pais/', async (_req,_res)=> {
+    try {
+      const pais = _req.body as Pais
+      const paisOriginal = await getPais( _req.params.pais )
+      
+      if( pais.nombre ){ paisOriginal.nombre= pais.nombre }
+      if (pais.provincias){ paisOriginal.provincias=pais.provincias }
+
+      collections.paises?.findOneAndReplace( {nombre:_req.params.pais} , paisOriginal)
+      return _res.status(200).send("mando may guey")
+  } catch (error) {
+      _res.status(400).send("el que dice error es puto");
+  }
+  })
+
+  async function calcGlobalSUM(grados:Array<number>)  {
+    if(grados.length<=0){return false}
+    let promedio:number  ; 
+    grados.forEach( (celsius)=> { if(!promedio){promedio=celsius.valueOf()}else{promedio=promedio.valueOf()+celsius.valueOf() }  }  )
+    return promedio!
+  }
+  async function getDegrees( ) {
+    
+    let grados:Array<number> = new Array<number>  
+    const paises = await ConvertColectionToPais(db)
+    //paises.forEach( (x)=>{x!.provincias.forEach( (provincia) => { provincia.ciudades.forEach( ( c )=>{ c.registroDeTemperatura.forEach( (regis)=>{ grados.push(regis.grados) } ) } ) }  )
+    //  if(!x) { return false} 
+   // })
+   paises.forEach( (pais)=> {return pais.provincias.forEach((provincia)=>{return provincia.ciudades.forEach( (ciudad)=>{return ciudad.registroDeTemperatura.forEach( (x)=>{return grados.push(x.grados) }) })  })})
+    return grados
+  }
+     
+  app.get( '/temperaturaPromedio/', async (_req,_res) => {
+    const grados = await getDegrees()
+    console.log(grados);
+    
+    const promedio = await calcGlobalSUM( grados )
+    if(promedio) { return _res.json({ "promedio" : promedio.valueOf()/grados.length}) }return _res.sendStatus(400)
+  })
+     
+
+
+//function findnombre(nombre:string,object:object){ const p = paises.find((pa) => pa.nombre.toLowerCase() === nombre) }
+
+let ciudades:Array<Ciudad> = new Array<Ciudad>
+let gciudad= new Ciudad("CABA", [  (new Tiempo( new Date() , 30) ), (new Tiempo( new Date() , 32) ),(new Tiempo(new Date(),36) ) ] )
+
+ciudades.push(gciudad )
+gciudad= new Ciudad("Pueyrredon", [  (new Tiempo( new Date() , 10) ), (new Tiempo( new Date() , 20) ),(new Tiempo(new Date(),16) ) ] )
+ciudades.push(gciudad )
 
 let provins = new Array<Provincia>
 let genprovincia = new Provincia("BSAS",ciudades)
 provins.push(genprovincia)
 
 ciudades = new Array<Ciudad>
-tiempos = await genCiudad(30,32,36)
-gciudad= new Ciudad("La Cumbresita",tiempos)
- ciudades = new Array<Ciudad>
- tiempos=await genCiudad(20,21,15)
- ciudades.push(new Ciudad("Ciudad de Cordoba",tiempos) )
- tiempos=await genCiudad( 40,35,37 )
- ciudades.push(new Ciudad("Yacanto",tiempos) )
+gciudad= new Ciudad("CiudadDeCordoba", [  (new Tiempo( new Date() , 10) ), (new Tiempo( new Date() , 20) ),(new Tiempo(new Date(),16) ) ] )
+ciudades = new Array<Ciudad>
+gciudad= new Ciudad("Cosquin", [  (new Tiempo( new Date() , 10) ), (new Tiempo( new Date() , 20) ),(new Tiempo(new Date(),16) ) ] )
+ciudades.push(gciudad)
 genprovincia = new Provincia("Cordoba",ciudades)
 provins.push(genprovincia)
 let paises = new Array<Pais>
 paises.push(new Pais("Argentina",provins))
-/*
-const p = paises.find((pa) => pa.nombre === _req.params.pais)
-console.log( p )
-if (p){
-  delete paises[paises.indexOf(p)]
-}
-_res.status(204).send()
+
+/** 
+ * @openapi
+ * components:
+ *  schemas:
+ *    Ciudad:
+ *      type: object
+ *      required:
+ *        -nombre
+ *        -registroDeTemperatura
+ *      properties:
+ *        nombre:
+ *          type: string
+ *          default:  tiananmensquare
+ *        registroDeTemperatura:
+ *          type: array
+ *          items:
+ *            $ref: '#/components/schemas/Tiempo'
+ *    Tiempo:
+ *      type: object
+ *      required:
+ *        -fecha
+ *        -grados
+ *      properties:
+ *        fecha:
+ *          type: string
+ *          default:  tiananmensquare
+ *        grados:
+ *          type: number
+ *    Provincia:
+ *      type: object
+ *      required:
+ *        -nombre
+ *        -ciudades
+ *      properties:
+ *        nombre:
+ *          type: string
+ *          default:  BSAS
+ *        ciudades:
+ *          type: array
+ *          items:
+ *            $ref: '#/components/schemas/Ciudad'
+ *    Pais:
+ *      type: object
+ *      required:
+ *        -nombre
+ *        -provincias
+ *      properties:
+ *        nombre:
+ *          type: string
+ *          default:  Argentina
+ *        provincias:
+ *          type: array
+ *          items:
+ *            $ref: '#/components/schemas/Provincia'
+ *        
+ *        
+ */
+
+
+
+
+
+
+
+/** 
+* @openapi
+* paths:
+*   /paises/{pais}:
+*     put:
+*       parameters:
+*         - in: path
+*           name: pais
+*           schema:
+*             type: string
+*             default: Argentina
+*           required: true
+*       tags: 
+*         - put
+*       summary: Reemplaza todos los valores del pais por los recibidos
+*       requestBody:
+*         required: true
+*         content:
+*           application/json:
+*             schema:
+*                $ref: '#/components/schemas/Pais'
+*           
+*       responses:
+*         200:
+*           content:
+*             application/json:
+*               schema:
+*                 $ref: '#/components/schemas/Pais'
 */
 
-const app: express.Application = express();
-
-const port = 3000
-
-app.use(express.json());
-
-app.put( '/paises/:pais', (_req,_res)=> {
-  const p = paises.find((pa) => pa.nombre.toLowerCase() === _req.params.pais.toLowerCase())
-  console.log( p )
-  if (p){
-    paises[paises.indexOf(p)] =_req.body
+app.put("/paises/:pais", async (_req, _res) => {
+  try {
+      const pais = _req.body as Pais
+      collections.paises?.findOneAndReplace( {nombre:_req.params.pais} , pais)
+      return _res.status(200).send("mando may guey")
+  } catch (error) {
+      _res.status(400).send("el que dice error es puto");
   }
-  _res.send(  "Putteado exitosamente ponele" )    
-}
+});
 
-)
-
-app.put( '/paises/:pais/:provincia', (_req,_res)=> {
-  const p = paises.find((pa) => pa.nombre.toLowerCase() === _req.params.pais.toLowerCase())
-  console.log( p )
-  if (p){
-    const provincia = paises[paises.indexOf(p)].provincias.find((pa) => pa.nombre.toLowerCase() === _req.params.provincia.toLowerCase()  )
-    if(!provincia){ return _res.status(400) }
-    const x = paises[paises.indexOf(p)].provincias.indexOf( provincia )
-    paises[paises.indexOf(p)].provincias[ x ] =_req.body
-  }
-  _res.send(  "Putteado exitosamente ponele" )    
-}
-
-)
-
-app.put( '/paises/:pais/:provincia/:ciudad', (_req,_res)=> {
-  const p = paises.find((pa) => pa.nombre.toLowerCase() === _req.params.pais.toLowerCase())
-  console.log( p )
-  if (p){
-    const provincia = paises[paises.indexOf(p)].provincias.find((pa) => pa.nombre.toLowerCase() === _req.params.provincia.toLowerCase()  )
-    if(!provincia){ return _res.status(400) }
-    const v = paises.indexOf(p)
-    const x = paises[v].provincias.indexOf(provincia)
-    const y = paises[v].provincias.find( (pa) => pa.nombre.toLowerCase() === _req.params.ciudad.toLowerCase() )
-    
-    paises[v].provincias[ x ].ciudades =_req.body    }
-    _res.send(  "Putteado exitosamente ponele" )    
-  }
-  
-  )
-  
-  app.patch( '/paises/:pais/', (_req,_res)=> {
-    const pais = paises.find((pa) => pa.nombre.toLowerCase() === _req.params.pais)
-    console.log( pais )
-    if (pais){
-      //const provincia = pais.provincias.find( (element)=> element.nombre==_req.params.provincia)
-      
-      if(_req.body.nombre  ) {
-        paises[paises.indexOf(pais)].nombre = _req.body.nombre;
-      }
-         if(_req.body.ciudades) {paises[paises.indexOf(pais)].provincias = _req.body.provincias;} 
-         
-    }
-    _res.send(  "Patcheado exitosamente ponele" )    
-  }
-  
-  )
-  
-  app.patch( '/paises/:pais/:provincia', (_req,_res)=> {
-    const pais = paises.find((pa) => pa.nombre.toLowerCase() === _req.params.pais.toLowerCase())
-    console.log( pais )
-    if (pais){
-        const provincia = pais.provincias.find( (element)=> element.nombre==_req.params.provincia)
-        if(!provincia){return _res.status(400) }
-        if(_req.body.nombre  ) {
-          pais.provincias[pais.provincias.indexOf(provincia)].nombre = _req.body.nombre;
-        }
-        if(_req.body.ciudades) {pais.provincias[pais.provincias.indexOf(provincia)].ciudades = _req.body.ciudades;} 
-          
-      }
-      _res.send(  "Patcheado exitosamente ponele" )    
-    }
-    
-    )
-    
-    
-    app.patch( '/paises/:pais/:provincia/:ciudad', (_req,_res)=> {
-      const pais = paises.find((pa) => pa.nombre.toLowerCase() === _req.params.pais)
-      console.log( pais )
-      if (pais){
-        const provincia = pais.provincias.find( (element)=> element.nombre==_req.params.provincia)
-        if(!provincia){return _res.status(400) }
-        const ciudad = provincia.ciudades.find((element)=> element.nombre.toLowerCase()==_req.params.ciudad.toLowerCase())
-        if(!ciudad){return _res.status(400)}
-        if(_req.body.nombre  ) {
-          pais.provincias[pais.provincias.indexOf(provincia)].nombre = _req.body.nombre;
-        }
-        if(_req.body.registroDeTemperatura) {pais.provincias[pais.provincias.indexOf(provincia)].ciudades[provincia.ciudades.indexOf(ciudad)] = _req.body.registroDeTemperatura;} 
-        
-      }
-      _res.send(  "Patcheado exitosamente ponele" )    
-    }
-
-    )
-
-    app.patch( '/paises/:pais/:provincia/:ciudad/:fecha', (_req,_res)=> {
-      const pais = paises.find((pa) => pa.nombre.toLowerCase() === _req.params.pais.toLowerCase())
-      console.log( pais )
-      if (pais){
-        const provincia = pais.provincias.find( (element)=> element.nombre==_req.params.provincia)
-        if(!provincia){return _res.status(400).send("No province?") }
-        const ciudad = provincia.ciudades.find((element)=> element.nombre.toLowerCase()==_req.params.ciudad.toLowerCase())
-        if(!ciudad){return _res.status(400).send("no city?")}
-        const f = ciudad.registroDeTemperatura.find( (pa) => pa.fecha.toString() === _req.params.fecha )
-        if(!f){return _res.status(400).send("no fecha?")}
-        if(_req.body.fecha  ) {
-          pais.provincias[pais.provincias.indexOf(provincia)].ciudades[provincia.ciudades.indexOf(ciudad)].registroDeTemperatura[ciudad.registroDeTemperatura.indexOf(f)].fecha = new Date(_req.body.fecha);
-        }
-        if(_req.body.grados) {pais.provincias[pais.provincias.indexOf(provincia)].ciudades[provincia.ciudades.indexOf(ciudad)] = _req.body.grados;} 
-        
-      }
-      _res.send(  "Patcheado exitosamente ponele" )    
-   }
-
-   )
-   
-   
-   
-   app.get('/', (_req , _res) => _res.send('Bienvenido a mi API REST!'));
-
-   app.delete( '/paises', (_req,_res)=> {
-     const p = paises.find((pa) => pa.nombre === _req.body.nombre)
-     console.log( p )
-     if (p){
-       paises.splice(paises.indexOf(p))
-      }
-      _res.send(  "Borrado exitosamente ponele" )    
-     }
-     
-     )
-     
-     app.delete( '/paises/:pais', (_req,_res)=> {
-       const p = paises.find((pa) => pa.nombre === _req.params.pais)
-       console.log( p )
-       if (p){
-         const pr = p.provincias.find((pa) => pa.nombre.toLowerCase() === _req.body.nombre)
-         if(!pr){return _res.status(400).send("no bitches?")}
-         const posDelete = paises[paises.indexOf(p)].provincias.indexOf(pr)
-      if(!posDelete){return  _res.status(400).send(" no array? ") }
-      //delete paises[paises.indexOf(p)].provincias[p.provincias.indexOf(pr)]
-      paises[paises.indexOf(p)].provincias.splice( posDelete,1 )
-    }
-    _res.send(  "Borrado exitosamente ponele" )    
-  }
-  
-  )
-  
-  app.delete( '/paises/:pais/:provincia', (_req,_res)=> {
-    const p = paises.find((pa) => pa.nombre.toLowerCase() === _req.params.pais.toLowerCase())
-    console.log( p )
-    if (p){
-      const pr = p.provincias.find((pa) => pa.nombre.toLowerCase() === _req.params.provincia)
-      if(!pr){return _res.status(400).send("no bitches?")}
-      const ciudad = pr.ciudades.find( (pa)=> pa.nombre.toLowerCase()=== _req.body.nombre )
-      if(!ciudad){return  _res.status(400).send(" no array? ") }
-      const posDelete = pr.ciudades.indexOf(ciudad)
-      paises[paises.indexOf(p)].provincias[p.provincias.indexOf(pr)].ciudades.splice( posDelete,1 )
-    }
-    _res.send(  "Borrado exitosamente ponele" )    
-  }
-  
-)
-
-app.delete( '/paises/:pais/:provincia/:ciudad', (_req,_res)=> {
-  const p = paises.find((pa) => pa.nombre.toLowerCase() === _req.params.pais.toLowerCase())
-  console.log( "original: ", _req.body.fecha )
-  if (p){
-    
-    const pr = p.provincias.find((pa) => pa.nombre.toLowerCase() === _req.params.provincia.toLowerCase())
-    if(!pr){return _res.status(400).send("no bitches?")}
-    const ciudad = pr.ciudades.find( (pa)=> pa.nombre.toLowerCase()=== _req.params.ciudad.toLowerCase() )
-    if(!ciudad){return  _res.status(400).send(" no array? ") }
-    // console.log(_req.body.fecha)
-    const reg = ciudad.registroDeTemperatura.find( (pa)=> { console.log(pa.fecha);return pa.fecha.toString() === _req.body.fecha.toLowerCase()}  )
-      console.log( )
-      if(!reg){return _res.status(400).send("messi")}
-      const posDelete = ciudad.registroDeTemperatura.indexOf(reg)
-      paises[paises.indexOf(p)].provincias[p.provincias.indexOf(pr)].ciudades[pr.ciudades.indexOf(ciudad)].registroDeTemperatura.splice( posDelete,1 )
-      _res.send(  "Borrado exitosamente ponele" ) 
-    }
-    _res.send("messi2")
-  
-  }
-
-  )
-  
-  
-  app.get( '/paises', (_req,_res)=> _res.send( paises )
-  )
-  
-  
-  function PaisByName(nombre: string) {
-    return paises.find( item => { return item.nombre== nombre} );    
-}
-
-app.get( '/paises/:pais', (_req,_res)=> {
-  
-  _res.send(  PaisByName(String(_req.params.pais)) )    
-}
-
- )
- 
- /*function ProvinciaByName(element:Pais,nombre:string) {
-   element.provincias.forEach(provincia => {
-     if(provincia.nombre == nombre){ return provincia}        
-    });  
-  }
-  */
- app.get('/paises/:pais/:provincia', (_req,_res)=> 
- {   
-   if( !_req.params.pais || !_req.params.provincia){  return _res.status(400).send("pogichamps")}
-   const element = PaisByName(_req.params.pais);
-   if(!element){return _res.status(400)}
-   console.log(element, element?.getProvincia(_req.params.provincia));
-   
-   _res.send( element!.getProvincia( _req.params.provincia) )
-  } )
-  
-  
-  app.post("/paises", (_req,_res) => {
-  const p = new Pais(_req.body.nombre, _req.body.provincias);
-  paises.push(p);
-  _res.json(p);   
+app.put( '/paises/:pais/provincias/:provincia', async (_req,_res)=> {
+  const provincia = _req.body as Provincia
+  const pais = await getPais(_req.params.pais)
+  const provAux= pais.provincias.find( (p)=>p.nombre=== _req.params.provincia )
+  if(!provAux){ return _res.sendStatus(400) }
+  const provPos = pais.provincias.indexOf( provAux )
+  pais.provincias[provPos]=provincia
+  collections.paises?.findOneAndReplace( {nombre: _req.params.pais},pais )
+  _res.status(200).send("papapepo!")
 })
 
+ /** 
+* @openapi
+* paths:
+*   /paises/{pais}/{provincia}:
+*     put:
+*       parameters:
+*         - in: path
+*           name: pais
+*           schema:
+*             type: string
+*             default: Argentina
+*           required: true
+*         - in: path
+*           name: provincia
+*           schema:
+*             type: string
+*             default: Pueyrredon
+*           required: true
+*       tags: 
+*         - put
+*       summary: Reemplaza todos los datos de la provincia por los del body
+*       requestBody:
+*         required: true
+*         content:
+*           application/json:
+*             schema:
+*                $ref: '#/components/schemas/Provincia'
+*           
+*       responses:
+*         200:
+*           content:
+*             application/json:
+*               schema:
+*                 $ref: '#/components/schemas/Provincia'
+*/
+
+
+app.put( '/paises/:pais/provincias/:provincia/ciudades/:ciudad/tiempo/:tiempo', async(_req,_res)=> {
+  
+  const tiempo = _req.body as Tiempo
+  const pais = await getPais(_req.params.pais)
+  const provincia = pais.provincias.find( (x)=>x.nombre===_req.params.provincia )
+  const ciudad = provincia?.ciudades.find( (x)=>x.nombre===_req.params.ciudad )
+  if(!ciudad || ciudad===undefined){ return _res.sendStatus(400) }
+  const tiempoAux = ciudad?.registroDeTemperatura.find( (x)=>String(x.fecha)===_req.params.tiempo )
+  const tiempoPos=ciudad?.registroDeTemperatura.indexOf( tiempoAux!)
+  pais.provincias[ pais.provincias.indexOf( provincia! ) ].ciudades[provincia!.ciudades.indexOf(ciudad)].registroDeTemperatura[tiempoPos]=tiempo
+  const respuesta = await collections.paises?.findOneAndReplace( {nombre: _req.params.pais },pais )
+  _res.status(200).send(respuesta)
+  //const tiempoaux = pais.provincias.find( (x)=>x.nombre===_req.params.provincia )?.ciudades.find( (x)=>x.nombre===_req.params.ciudad )?.registroDeTemperatura.find( (x)=>String(x.fecha)=== _req.params.tiempo)  } )
+/*
+  pais.provincias[provPos]=provincia
+  collections.paises?.findOneAndReplace( {nombre: _req.params.pais},pais )
+  _res.status(200).send("papapepo!")
+  */
+})
+
+ /** 
+* @openapi
+* paths:
+*   /paises/{pais}/{provincia}/{ciudad}:
+*     put:
+*       parameters:
+*         - in: path
+*           name: pais
+*         - in: path
+*           name: provincia
+*         - in: path
+*           name: ciudad
+*       tags: 
+*         - put
+*       summary: Reemplaza todos los datos de la ciudad por los del body
+*       requestBody:
+*         required: true
+*         content:
+*           application/json:
+*             schema:
+*                $ref: '#/components/schemas/Ciudad'
+*           
+*       responses:
+*         200:
+*           content:
+*             application/json:
+*               schema:
+*                 $ref: '#/components/schemas/Ciudad'
+*/
+
+app.put( '/paises/:pais/provincias/:provincia/ciudades/:ciudad', async(_req,_res)=> {
+  const ciudad = _req.body as Ciudad
+  const pais = await getPais(_req.params.pais)
+  const provincia = pais.provincias.find( (x)=>x.nombre===_req.params.provincia )
+  if(!provincia){return _res.status(400).send("no") }
+  const ciudadPos = provincia!.ciudades.indexOf( (provincia!.ciudades.find( (x)=> x.nombre ===_req.params.ciudad)! ))
+  pais.provincias[ pais.provincias.indexOf( provincia! ) ].ciudades[ ciudadPos ]=ciudad
+  const respuesta = await collections.paises?.findOneAndReplace( {nombre: _req.params.pais },pais )
+  _res.status(200).send(respuesta)
+})
+
+/** 
+* @openapi
+* paths:
+*   /paises/{pais}/{provincia}:
+*     patch:
+*       parameters:
+*         - in: path
+*           name: pais
+*           schema:
+*             type: string
+*             default: Argentina
+*           required: true
+*         - in: path
+*           name: provincia
+*           schema:
+*             type: string
+*             default: Pueyrredon
+*           required: true
+*       tags: 
+*         - patch
+*       summary:  Reepmlaza los datos de la provincia por los datos que no sean undefined o false del body
+*       requestBody:
+*         required: true
+*         content:
+*           application/json:
+*             schema:
+*                $ref: '#/components/schemas/Provincia'
+*           
+*       responses:
+*         200:
+*           content:
+*             application/json:
+*               schema:
+*                 $ref: '#/components/schemas/Provincia'
+*/
+
+ 
+app.patch( '/paises/:pais/provincias/:provincia', async(_req,_res)=> {
+  try {
+    const provincia = _req.body as Provincia
+    const pais = await getPais( _req.params.pais )
+    const provinciaOriginal = pais.provincias.find( (x)=>x.nombre===_req.params.provincia )
+    const provPos = pais.provincias.indexOf( provinciaOriginal! )
+    if( provincia.nombre ){ provinciaOriginal!.nombre= provincia.nombre }
+    if (provincia.ciudades){ provinciaOriginal!.ciudades=provincia.ciudades }
+    pais.provincias[provPos]=provinciaOriginal!
+    collections.paises?.findOneAndReplace( {nombre:_req.params.pais} , pais)
+    return _res.status(200).send("mando may guey")
+} catch (error) {
+    _res.status(400).send("el que dice error es puto");
+}
+})
+
+ 
+
+ /** 
+* @openapi
+* paths:
+*   /paises/{pais}/{provincia}/{ciudad}:
+*     patch:
+*       parameters:
+*         - in: path
+*           name: pais
+*         - in: path
+*           name: provincia
+*         - in: path
+*           name: ciudad
+*       tags: 
+*         - patch
+*       summary: Reepmlaza los datos de la ciudad por aquellos del body que no sean undefined o false
+*       requestBody:
+*         required: true
+*         content:
+*           application/json:
+*             schema:
+*                $ref: '#/components/schemas/Ciudad'
+*           
+*       responses:
+*         200:
+*           content:
+*             application/json:
+*               schema:
+*                 $ref: '#/components/schemas/Ciudad'
+*/
+
+app.patch( '/paises/:pais/provincias/:provincia/ciudades/:ciudad', async(_req,_res)=> {
+  try {
+    const ciudad = _req.body as Ciudad
+    const pais = await getPais( _req.params.pais )
+    const provincia = pais.provincias.find( (x)=>x.nombre===_req.params.provincia )
+    const ciudadOriginal = provincia!.ciudades.find( (x)=>x.nombre===_req.params.ciudad )
+    const ciudadPos = pais.provincias[pais.provincias.indexOf(provincia!)].ciudades.indexOf(ciudadOriginal!)
+    if( ciudad.nombre ){ ciudadOriginal!.nombre= ciudad!.nombre }
+    if (ciudad.registroDeTemperatura){ ciudadOriginal!.registroDeTemperatura=ciudad!.registroDeTemperatura }
+    pais.provincias[ pais.provincias.indexOf( provincia! ) ].ciudades[ciudadPos] =  ciudadOriginal!
+    collections.paises?.findOneAndReplace( {nombre:_req.params.pais} , pais!)
+    return _res.status(200).send("mando may guey")
+} catch (error) {
+    _res.status(400).send("el que dice error es puto");
+}
+})
+
+
+ /** 
+* @openapi
+* paths:
+*   /paises/{pais}/{provincia}/ciudades/{ciudad}/registroDeTiempo/{fecha}:
+*     patch:
+*       parameters:
+*         - in: path
+*           name: pais
+*         - in: path
+*           name: provincia
+*         - in: path
+*           name: ciudad
+*         - in: path
+*           name: fecha
+*       tags: 
+*         - patch
+*       summary: Reepmlaza los datos de la fecha por aquellos del body que no sean undefined o false
+*       requestBody:
+*         required: true
+*         content:
+*           application/json:
+*             schema:
+*                $ref: '#/components/schemas/Tiempo'
+*           
+*       responses:
+*         200:
+*           content:
+*             application/json:
+*               schema:
+*                 $ref: '#/components/schemas/Tiempo'
+*/
+
+
+app.patch( '/paises/:pais/provincias/:provincia/ciudades/:ciudad/fechas/:fecha', async(_req,_res)=> {
+  try {
+    const tiempo = _req.body as Tiempo
+    const pais = await getPais( _req.params.pais )
+    const provincia = pais.provincias.find( (x)=>x.nombre===_req.params.provincia )
+    const ciudad = provincia!.ciudades.find( (x)=>x.nombre===_req.params.ciudad )
+    const tiempoOriginal = ciudad!.registroDeTemperatura.find( (x)=>String(x.fecha)! ===_req.params.fecha )
+    const tiempoPos = pais.provincias[pais.provincias.indexOf(provincia!)].ciudades[provincia!.ciudades.indexOf( ciudad! )].registroDeTemperatura.indexOf(tiempoOriginal!)
+    const ciudadPos = pais.provincias[pais.provincias.indexOf(provincia!)].ciudades.indexOf(ciudad!)
+
+    if( tiempo.fecha ){ tiempoOriginal!.fecha= tiempo!.fecha }
+    if (tiempo.grados){ tiempoOriginal!.grados=tiempo!.grados }
+    pais.provincias[ pais.provincias.indexOf( provincia! ) ].ciudades[ciudadPos].registroDeTemperatura[tiempoPos]=tiempoOriginal!
+    collections.paises?.findOneAndReplace( {nombre:_req.params.pais} , pais!)
+    return _res.status(200).send("mando may guey")
+} catch (error) {
+    _res.status(400).send("el que dice error es puto");
+}
+})
+
+app.get('/', (_req , _res) => _res.send('Bienvenido a mi API REST!'));
+
+/** 
+* @openapi
+* paths:
+*   /paises:
+*     delete:
+*       tags: 
+*         - delete
+*       summary: Borra el pais cuyo nombre coincida con el enviado en el body
+*       requestBody:
+*         required: true
+*         content:
+*           application/json:
+*             schema:
+*               $ref: '#/components/schemas/Pais'
+*           
+*       responses:
+*         200:
+*           content:
+*             application/json:
+*               schema:
+*                 $ref: '#/components/schemas/Pais'
+*       
+*/
+
+app.delete("/paises", async (_req, _res) => {
+  try {
+    const r = await collections.paises?.deleteOne( { nombre: _req.body.nombre } );
+
+    if (r && r.deletedCount) {
+      _res.status(202).send(`Se fue a cagar! yei `);
+    } else if (!r) {
+      _res.status(400).send(`No!!!`);
+    } else if (!r.deletedCount) {
+      _res.status(404).send(` no existe geniopfsjmerg`);
+    }
+  } catch (error) {
+      _res.status(400).send("error");
+  }
+});
+
+ /** 
+* @openapi
+* paths:
+*   /paises/{pais}:
+*     delete:
+*       parameters:
+*         - in: path
+*           name: pais
+*           schema:
+*             type: string
+*             default: Argentina
+*           required: true
+*       tags: 
+*         - delete
+*       summary: Borra la provincia indicada en el body
+*       requestBody:
+*         required: true
+*         content:
+*           application/json:
+*             schema:
+*               $ref: '#/components/schemas/Provincia'
+*           
+*       responses:
+*         200:
+*           content:
+*             application/json:
+*               schema:
+*                 $ref: '#/components/schemas/Provincia'
+*       
+*/
+
+ app.delete( '/paises/:pais/provincias', async(_req,_res)=> {
+  try {
+    const provincia = _req.body as Provincia
+    const pais      = await getPais( _req.params.pais )
+    const provAux   = pais.provincias.find( (x)=>x.nombre===pais.nombre )
+    const provPos = pais.provincias.indexOf(provAux!)
+    pais.provincias.splice( provPos,1 )
+    collections.paises?.findOneAndReplace( {nombre:_req.params.pais} , pais)
+    return _res.status(200).send("mando may guey")
+} catch (error) {
+    _res.status(400).send("el que dice error es puto");
+}
+})
+
+ /** 
+* @openapi
+* paths:
+*   /paises/{pais}/{provincia}:
+*     delete:
+*       parameters:
+*         - in: path
+*           name: pais
+*           schema:
+*             type: string
+*             default: Argentina
+*           required: true
+*         - in: path
+*           name: provincia
+*           schema:
+*             type: string
+*             default: BSAS
+*           required: true
+*       tags: 
+*         - delete
+*       summary: Borra la ciudad indicada en el body
+*       requestBody:
+*         required: true
+*         content:
+*           application/json:
+*             schema:
+*               $ref: '#/components/schemas/Ciudad'
+*           
+*       responses:
+*         200:
+*           content:
+*             application/json:
+*               schema:
+*                 $ref: '#/components/schemas/Ciudad'
+*       
+*/
+
+app.delete( '/paises/:pais/provincias/:provincia/ciudades', async(_req,_res)=> {
+    try {
+    const ciudad = _req.body as Ciudad
+    const pais      = await getPais( _req.params.pais )
+    const provincia   = pais.provincias.find( (x)=>x.nombre===_req.params.provincia )
+    const ciudadAux = provincia?.ciudades.find( (x)=>x.nombre===ciudad.nombre )
+    const ciudadPos = provincia?.ciudades.indexOf(ciudadAux!)
+    pais.provincias[pais.provincias.indexOf(provincia!)].ciudades.splice( ciudadPos!,1 )
+    collections.paises?.findOneAndReplace( {nombre:_req.params.pais} , pais)
+    return _res.status(200).send("mando may guey")
+} catch (error) {
+    _res.status(400).send("el que dice error es puto");
+}
+})
+ /** 
+* @openapi
+* paths:
+*   /paises/{pais}/{provincia}/{ciudad}:
+*     delete:
+*       parameters:
+*         - in: path
+*           name: pais
+*           schema:
+*             type: string
+*             default: Argentina
+*           required: true
+*         - in: path
+*           name: provincia
+*           schema:
+*             type: string
+*             default: BSAS
+*           required: true
+*         - in: path
+*           name: ciudad
+*           schema:
+*             type: string
+*             default: CABA
+*           required: true
+*       tags: 
+*         - delete
+*       summary: Borra el registro de tiempo indicado en el body
+*       requestBody:
+*         required: true
+*         content:
+*           application/json:
+*             schema:
+*               $ref: '#/components/schemas/Tiempo'
+*           
+*       responses:
+*         200:
+*           content:
+*             application/json:
+*               schema:
+*                 $ref: '#/components/schemas/Tiempo'
+*       
+*/
+app.delete( '/paises/:pais/provincias/:provincia/ciudades/:ciudad/fechas', async(_req,_res)=> {
+  try {
+    const tiempo = _req.body as Tiempo
+    const pais      = await getPais( _req.params.pais )
+    const provincia   = pais.provincias.find( (x)=>x.nombre===_req.params.provincia )
+    const ciudad = provincia?.ciudades.find( (x)=>x.nombre===_req.params.ciudad )
+    const tiempoAux = ciudad?.registroDeTemperatura.find((x)=>x.fecha===tiempo.fecha)
+    const tiempoPos = ciudad?.registroDeTemperatura.indexOf(tiempoAux!)
+    pais.provincias[pais.provincias.indexOf(provincia!)].ciudades[provincia!.ciudades.indexOf(ciudad!)].registroDeTemperatura.splice( tiempoPos!,1 )
+    collections.paises?.findOneAndReplace( {nombre:_req.params.pais} , pais)
+    return _res.status(200).send("mando may guey")
+} catch (error) {
+    _res.status(400).send("el que dice error es puto");
+}
+   }
+
+)
+
+/** 
+* @openapi
+* /paises:
+*   get:
+*     tags: 
+*       - get
+*     responses:
+*       200:
+*         description: Funcionamiento normal
+*/
+
+
+
+
+function PaisByName(nombre: String) {
+    return paises.find( item => { return item.nombre== nombre} );    
+}
+/** 
+* @openapi
+* /paises/{pais}:
+*   get:
+*     parameters:
+*       - in: path
+*         name: pais
+*     tags: 
+*       - get
+*     responses:
+*       200:
+*         description: Funcionamiento normal
+*/
+ app.get( '/paises/:pais', async(_req,_res)=> {
+  const pais = getPais(_req.params.pais)
+  _res.status(200).send(pais)   
+     }
+
+ )
+
+ /** 
+* @openapi
+* /paises/{pais}/{provincia}:
+*   get:
+*     parameters:
+*       - in: path
+*         name: pais
+*       - in: path
+*         name: provincia
+*     tags: 
+*       - get
+*     responses:
+*       200:
+*         description: Funcionamiento normal
+*/
+
+app.get('/paises/:pais/provincias/:provincia', async (_req,_res)=> 
+{  
+  const paises  = await ConvertColectionToPais(db)
+  const pais    = await findPais(paises,_req.params.pais)
+  if (!pais){ return _res.sendStatus(400) }
+   _res.status(200).send( await findProvincia( pais,_req.params.provincia ) )
+   /*
+    if( !_req.params.pais || !_req.params.provincia){  return _res.status(400).send("pogichamps")}
+    const element = PaisByName(_req.params.pais);
+    if(!element){return _res.sendStatus(400)}
+    console.log(element, element?.getProvincia(_req.params.provincia));
+    
+    _res.send( element!.getProvincia( _req.params.provincia) )*/
+     } )
+
+/** 
+* @openapi
+* /temperaturaPromedio/:
+*   get:
+*     tags: 
+*       - temperaturaPromedio
+*     responses:
+*       200:
+*         description: Funcionamiento normal
+*/
+
+    
+    
+    
+
+/** 
+* @openapi
+* /temperaturaPromedio/{pais}:
+*   get:
+*     parameters:
+*       - in: path
+*         name: pais
+*     tags: 
+*       - temperaturaPromedio
+*     responses:
+*       200:
+*         description: Funcionamiento normal
+*/
+app.get( '/temperaturaPromedio/:pais', (_req,_res) => {
+  if (!_req.params.pais) {
+    return _res.status(400).send("te falto el pais capo")
+  }
+  let grados:Array<Number> = new Array<Number>  
+   const x = PaisByName(_req.params.pais)
+  x!.provincias.forEach( (provincia) => { provincia.ciudades.forEach( ( c )=>{ c.registroDeTemperatura.forEach( (regis)=>{ grados.push(regis.grados) } ) } ) }  )
+  if(!x) { return _res.status(400).send("snickers?")}
+  let promedio:Number = new Number; 
+  grados.forEach( (celsius)=> { if(!promedio){promedio=celsius.valueOf()}else{promedio=promedio.valueOf()+celsius.valueOf() }  }  )
+  if(promedio) { return _res.json({ "promedio" : promedio.valueOf()/grados.length}) }
+  return _res.sendStatus(400)
+ } )
+
+/** 
+* @openapi
+* /temperaturaPromedio/{pais}/{provincia}:
+*   get:
+*     parameters:
+*       - in: path
+*         name: pais
+*       - in: path
+*         name: provincia
+*     tags: 
+*       - temperaturaPromedio
+*     responses:
+*       200:
+*         description: Funcionamiento normal
+*/
+
+
+ app.get( '/temperaturaPromedio/:pais/provincias/:provincia', (_req,_res) => {
+  if (!_req.params.pais) {
+    return _res.status(400).send("te falto el pais capo")
+  }
+  if (!_req.params.provincia) {
+    return _res.status(400).send("te falto provincia capo")
+  }
+  let grados:Array<Number> = new Array<Number>  
+   const pais = PaisByName(_req.params.pais)
+   if(!pais){return _res.status(400).send("nope")}
+  const x = pais.provincias.find( (pa)=> pa.nombre===_req.params.provincia )
+  if(!x) { return _res.status(400).send("snickers?")}
+  x.ciudades.forEach( (city)=> { city.registroDeTemperatura.forEach( (regs)=>{ grados.push(regs.grados) } ) } )
+  let promedio:Number = new Number; 
+  grados.forEach( (celsius)=> { if(!promedio){promedio=celsius.valueOf()}else{promedio=promedio.valueOf()+celsius.valueOf() }  }  )
+  if(promedio) { return _res.json({ "promedio" : promedio.valueOf()/grados.length}) }
+  return _res.sendStatus(400)
+ } )
+
+
+ /** 
+* @openapi
+* /paises:
+*   post:
+*     tags: 
+*       - post
+*     summary: Agrega un pais con los datos del body
+*     requestBody:
+*       required: true
+*       content:
+*         application/json:
+*           schema:
+*              $ref: '#/components/schemas/Pais'
+*           
+*     responses:
+*       200:
+*         content:
+*           application/json:
+*             schema:
+*               $ref: '#/components/schemas/Pais'
+*/
+
+/*app.post("/paises", async (_req,_res) => {
+  const paises = await ConvertColectionToPais(db)
+  const x = _req.body as Pais
+  const resultado = await collections.paises?.insertOne(Pais)
+  //const prueba = (await db.collection("paises").find().toArray()).push()
+}) what tho hell oh may gaaa there's no waaaiaiiaiay*/ 
+
+app.post("/paises", async (_req, _res) => {
+  try {
+      const newPais = _req.body as Pais;
+
+      const existePais = await collections.paises?.findOne({ nombre: newPais.nombre });
+      if(existePais){ return _res.status(400).send("Ya existe (leto no podemos poner eso)") }
+
+      const r = await collections.paises?.insertOne(newPais);
+      r
+          ? _res.status(201).send(`Se creo yei ${r.insertedId}`)
+          : _res.status(500).send("Que haces? GAAAAA");
+  } catch (error) {
+      _res.status(400).send("hola");
+  }
+});
+
+/** 
+* @openapi
+* paths:
+*   /paises/{pais}:
+*     post:
+*       parameters:
+*         - in: path
+*           name: pais
+*           schema:
+*             type: string
+*             default: Argentina
+*           required: true
+*       tags: 
+*         - post
+*       summary: Agrega una provincia a un pais, con los datos del body
+*       requestBody:
+*         required: true
+*         content:
+*           application/json:
+*             schema:
+*                $ref: '#/components/schemas/Provincia'
+*           
+*       responses:
+*         200:
+*           content:
+*             application/json:
+*               schema:
+*                 $ref: '#/components/schemas/Provincia'
+*/
+
+
+/*
 app.post("/paises/:pais", (_req,_res) => {
+  const p = new Provincia(_req.body.nombre, _req.body.ciudades);
+  console.log(_req.body.nombre," ", _req.body.ciudades)
+  const dirPais = paises.find((pa) => pa.nombre.toLowerCase() === _req.params.pais.toLowerCase())
+  if(!dirPais) {return _res.sendStatus(400)}
+  const repetido = dirPais.provincias.find( (pa)=>pa.nombre===_req.body.nombre )
+  if(repetido){return _res.status(400).send("Ya existe la provincia")}
+  console.log(p)
+  paises[paises.indexOf(dirPais)].provincias.push(p)
+  _res.json(p);   
+}) gggggggg*/ 
+
+/*app.post("/paises/:pais", (_req,_res) => {
   const p = new Provincia(_req.body.nombre, _req.body.ciudades);
   const dirPais = paises.find((pa) => pa.nombre.toLowerCase() === _req.params.pais.toLowerCase())
   if(!dirPais) {return _res.status(400)}
   paises[paises.indexOf(dirPais)].provincias.push(p)
   _res.json(p);   
+})*/
+
+app.post("/paises/:pais/provincias", async (_req, _res) => {
+  const provincia = _req.body as Provincia
+  const pais = await getPais( _req.params.pais )
+  if (!pais) { _res.status(400).send( "hubo problemas encontrando la coleccion, seguramente no exista." ) }
+  pais!.provincias.push( provincia )
+  const posteado = await collections.paises?.findOneAndReplace( { nombre: _req.params.pais }, pais )
+  _res.status(200).send(posteado?.value)
+});
+
+/** 
+* @openapi
+* paths:
+*   /paises/{pais}/{provincia}:
+*     post:
+*       parameters:
+*         - in: path
+*           name: pais
+*           schema:
+*             type: string
+*             default: Argentina
+*           required: true
+*         - in: path
+*           name: provincia
+*           schema:
+*             type: string
+*             default: Pueyrredon
+*           required: true
+*       tags: 
+*         - post
+*       summary: Agrega una ciudad con los datos del body
+*       requestBody:
+*         required: true
+*         content:
+*           application/json:
+*             schema:
+*                $ref: '#/components/schemas/Ciudad'
+*           
+*       responses:
+*         200:
+*           content:
+*             application/json:
+*               schema:
+*                 $ref: '#/components/schemas/Ciudad'
+*/
+
+app.post("/paises/:pais/provincias/:provincia/ciudades", async (_req,_res) => {
+  const ciudad  = _req.body as Ciudad
+  const pais = await getPais( _req.params.pais )
+  const provincia = pais.provincias.find( (prov)=> prov.nombre ===_req.params.provincia )
+  provincia?.ciudades.push( ciudad )
+  const respuesta = await collections.paises?.findOneAndReplace( { nombre: _req.params.pais } , pais )
+  return _res.status(200).send( respuesta )
 })
 
+/** 
+* @openapi
+* paths:
+*   /paises/{pais}/{provincia}/{ciudad}:
+*     post:
+*       parameters:
+*         - in: path
+*           name: pais
+*       tags: 
+*         - post
+*       summary: Agrega un registro de tiempo con los datos del body
+*       requestBody:
+*         required: true
+*         content:
+*           application/json:
+*             schema:
+*                $ref: '#/components/schemas/Tiempo'
+*           
+*       responses:
+*         200:
+*           content:
+*             application/json:
+*               schema:
+*                 $ref: '#/components/schemas/Tiempo'
+*/
 
-app.post("/paises/:pais/:provincia", (_req,_res) => {
-  const p = new Ciudad(_req.body.nombre, _req.body.registroDeTemperatura);
-  const dirPais = paises.find((pa) => pa.nombre.toLowerCase() === _req.params.pais.toLowerCase())
-  if(!dirPais) {return _res.status(400)}
-  const dirProvincia = dirPais.provincias.find((pa) => pa.nombre.toLowerCase() === _req.params.provincia.toLowerCase() )
-  if(!dirProvincia) {return _res.status(400)}
-  paises[paises.indexOf(dirPais)].provincias[paises[paises.indexOf(dirPais)].provincias.indexOf( dirProvincia ) ].ciudades.push(p);
-  _res.json(p);   
+app.post("/paises/:pais/provincias/:provincia/ciudades/:ciudad/tiempo", async(_req,_res) => {
+  const tiempo  = _req.body as Tiempo
+  const pais = await getPais( _req.params.pais )
+  const provincia = pais.provincias.find( (prov)=> prov.nombre ===_req.params.provincia )
+  const ciudad = provincia?.ciudades.find( (c)=> c.nombre===_req.params.ciudad )
+  if(!ciudad || !provincia) { return _res.status(400).send(null) }
+  const provPos = pais.provincias.indexOf( provincia )
+  const ciudadPos = provincia.ciudades.indexOf(ciudad)
+  if( !ciudad.registroDeTemperatura ) { return _res.sendStatus(400)}
+  pais.provincias[provPos].ciudades[ciudadPos].registroDeTemperatura.push(tiempo)
+  collections.paises?.findOneAndReplace( {nombre: pais.nombre},pais )
+  _res.send(pais)  
 })
 
-app.post("/paises/:pais/:provincia/:ciudad", (_req,_res) => {
-  const p = new Tiempo(_req.body.fecha, _req.body.grados);
-  const dirPais = paises.find((pa) => pa.nombre.toLowerCase() === _req.params.pais.toLowerCase())
-  if(!dirPais) {return _res.status(400)}
-  const dirProvincia = dirPais.provincias.find((pa) => pa.nombre.toLowerCase() === _req.params.provincia.toLowerCase() )
-  if(!dirProvincia) {return _res.status(400)}
-  const ciudad = dirProvincia.ciudades.find((pa) => pa.nombre.toLowerCase() === _req.params.ciudad.toLowerCase() )
-  if(!ciudad) {return _res.status(400)}
-  paises[paises.indexOf(dirPais)].provincias[dirPais.provincias.indexOf( dirProvincia ) ].ciudades[dirProvincia.ciudades.indexOf(ciudad) ].registroDeTemperatura.push(p);
-  _res.json(p);   
-})
+/** 
+* @openapi
+* /paises/{pais}/{provincia}/{ciudad}:
+*   get:
+*     parameters:
+*       - in: path
+*         name: pais
+*       - in: path
+*         name: provincia
+*       - in: path
+*         name: ciudad
+*     tags: 
+*       - get
+*     responses:
+*       200:
+*         description: Funcionamiento normal
+*/
 
+app.get('/paises/:pais/provincias/:provincia/ciudades/:ciudad', async (_req,_res)=> { 
+  const paises  = await ConvertColectionToPais(db)
+  const pais    = await findPais(paises,_req.params.pais)
+  if(!pais){return _res.sendStatus(400)}
+  const provincia = await findProvincia( pais,_req.params.provincia )
+  if(provincia) return _res.status(200).send( await findCiudad( provincia,_req.params.ciudad ) )
+  return _res.sendStatus(400)
+} )
 
-app.get('/paises/:pais/:provincia/:ciudad', (_req,_res)=> { 
-  if( !_req.params.pais || !_req.params.provincia||!_req.params.ciudad){  return _res.status(400).send("pogichamps")}
-  
-  const p = PaisByName(_req.params.pais); 
-    if (!p) return _res.status(400)
     
-    const pr = p.getProvincia(_req.params.provincia) 
-    if (!pr) return _res.status(400)
-    
-    _res.send(pr.ciudades.find((ciudad) => ciudad.nombre.toLowerCase() === _req.params.ciudad.toLowerCase()))
-  } )
-  
-  
-  
- app.listen(port, () => console.log(`Escuchando en el puerto ${port}!`));
-}
+
+ app.listen(port, () => {console.log(`Escuchando en el puerto ${port}!`); 
+ swaggerDocs(app,port)  
+});
+ 
+
+} 
+
+
  main()
