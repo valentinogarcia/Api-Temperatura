@@ -1,9 +1,6 @@
 
-
-
 import { ObjectId } from 'mongodb';
 import * as mongoDB from "mongodb";
-import * as dotenv from "dotenv";
 import { Ciudad } from './Ciudad';
 import { Pais } from './Pais';
 import { Provincia } from './Provincia';
@@ -61,6 +58,7 @@ async function findCiudad(provincia:Provincia,target:string) {
 async function findProvincia(pais:Pais,target:string) {
   return pais.provincias.find( ( provincia ) => provincia.nombre.toLowerCase()===target.toLowerCase() )  
 }
+
 
 async function main() {
 
@@ -281,6 +279,23 @@ const p = paises.find((pa) => pa.nombre === _req.params.pais)
 *               schema:
 *                 $ref: '#/components/schemas/Pais'
 */
+
+app.put("/paises/:pais", async (_req, _res) => {
+  try {
+      const paisAct: Pais = _req.body as Pais;
+      //const query = { _id: new ObjectId(id) };
+
+      //const r = await collections.paises?.deleteOne( { nombre: _req.body.nombre } );
+
+      const r = await collections.paises?.updateOne(_req.body.nombre, { $set: paisAct });
+
+      r
+          ? _res.status(200).send(`Se actualizo yyreeeiiii!!!`)
+          : _res.status(304).send(`No existe....`);
+  } catch (error) {
+      _res.status(400).send("el que dice error es puto");
+  }
+});
 
 app.put( '/paises/:pais', (_req,_res)=> {
   const p = paises.find((pa) => pa.nombre.toLowerCase() === _req.params.pais.toLowerCase())
@@ -565,15 +580,22 @@ app.get('/', (_req , _res) => _res.send('Bienvenido a mi API REST!'));
 *                 $ref: '#/components/schemas/Pais'
 *       
 */
-app.delete( '/paises', (_req,_res)=> {
-  const p = paises.find((pa) => pa.nombre.toLowerCase() === _req.body.nombre.toLowerCase())
-  console.log( p )
-  if (p){
-    paises.splice(paises.indexOf(p))
-    return _res.send(  "Borrado exitosamente ponele" )   
+
+app.delete("/paises", async (_req, _res) => {
+  try {
+    const r = await collections.paises?.deleteOne( { nombre: _req.body.nombre } );
+
+    if (r && r.deletedCount) {
+      _res.status(202).send(`Se fue a cagar! yei `);//${id}
+    } else if (!r) {
+      _res.status(400).send(`No!!!`);
+    } else if (!r.deletedCount) {
+      _res.status(404).send(` no existe geniopfsjmerg`);
+    }
+  } catch (error) {
+      _res.status(400).send("error");
   }
-  _res.sendStatus(400)    
-})
+});
 
  /** 
 * @openapi
@@ -751,7 +773,7 @@ app.delete( '/paises/:pais/provincias/:provincia/ciudades/:ciudad', (_req,_res)=
 
 
 
-function PaisByName(nombre: string) {
+function PaisByName(nombre: String) {
     return paises.find( item => { return item.nombre== nombre} );    
 }
 /** 
@@ -906,12 +928,28 @@ app.get( '/temperaturaPromedio/:pais', (_req,_res) => {
 *               $ref: '#/components/schemas/Pais'
 */
 
-app.post("/paises", async (_req,_res) => {
+/*app.post("/paises", async (_req,_res) => {
   const paises = await ConvertColectionToPais(db)
   const x = _req.body as Pais
   const resultado = await collections.paises?.insertOne(Pais)
   //const prueba = (await db.collection("paises").find().toArray()).push()
-})
+})*/
+
+app.post("/paises", async (_req, _res) => {
+  try {
+      const newPais = _req.body as Pais;
+
+      const existePais = await collections.paises?.findOne({ nombre: newPais.nombre });
+      if(existePais){ return _res.status(400).send("Ya existe hijueputa") }
+
+      const r = await collections.paises?.insertOne(newPais);
+      r
+          ? _res.status(201).send(`Se creo yei ${r.insertedId}`)
+          : _res.status(500).send("Que haces?");
+  } catch (error) {
+      _res.status(400).send("hola");
+  }
+});
 
 /** 
 * @openapi
@@ -943,6 +981,8 @@ app.post("/paises", async (_req,_res) => {
 *                 $ref: '#/components/schemas/Provincia'
 */
 
+
+/*
 app.post("/paises/:pais", (_req,_res) => {
   const p = new Provincia(_req.body.nombre, _req.body.ciudades);
   console.log(_req.body.nombre," ", _req.body.ciudades)
@@ -953,7 +993,21 @@ app.post("/paises/:pais", (_req,_res) => {
   console.log(p)
   paises[paises.indexOf(dirPais)].provincias.push(p)
   _res.json(p);   
-})
+}) gggggggg*/ 
+
+/*app.post("/paises/:pais", (_req,_res) => {
+  const p = new Provincia(_req.body.nombre, _req.body.ciudades);
+  const dirPais = paises.find((pa) => pa.nombre.toLowerCase() === _req.params.pais.toLowerCase())
+  if(!dirPais) {return _res.status(400)}
+  paises[paises.indexOf(dirPais)].provincias.push(p)
+  _res.json(p);   
+})*/
+
+app.post("/paises/:pais", async (_req, _res) => {
+    const p = new Provincia(_req.body.nombre, _req.body.ciudades);
+    const dirPais = paises.find((pa) => pa.nombre.toLowerCase() === _req.params.pais.toLowerCase())
+    if(!dirPais) {return _res.status(400)}
+});
 
 /** 
 * @openapi
