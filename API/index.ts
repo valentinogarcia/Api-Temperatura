@@ -130,11 +130,13 @@ async function main() {
   async function getDegrees( ) {
     
     let grados:Array<number> = new Array<number>  
-    const paises = await ConvertColectionToPais(db)
-    //paises.forEach( (x)=>{x!.provincias.forEach( (provincia) => { provincia.ciudades.forEach( ( c )=>{ c.registroDeTemperatura.forEach( (regis)=>{ grados.push(regis.grados) } ) } ) }  )
-    //  if(!x) { return false} 
-   // })
-   paises.forEach( (pais)=> {return pais.provincias.forEach((provincia)=>{return provincia.ciudades.forEach( (ciudad)=>{return ciudad.registroDeTemperatura.forEach( (x)=>{return grados.push(x.grados) }) })  })})
+    let paises = await ConvertColectionToPais(db)
+    console.log(paises);
+    
+   paises.forEach( (pais)=> { pais.provincias.forEach((provincia)=>{ console.log(provincia);
+   ;provincia.ciudades.forEach( (ciudad)=>{console.log(ciudad);
+    ciudad.registroDeTemperatura.forEach( (x)=>{ console.log(grados.push(x.grados));console.log( grados );return grados;
+    }) })  })})
     return grados
   }
      
@@ -289,7 +291,7 @@ app.put( '/paises/:pais/provincias/:provincia', async (_req,_res)=> {
  /** 
 * @openapi
 * paths:
-*   /paises/{pais}/{provincia}:
+*   /paises/{pais}/provincias/{provincia}:
 *     put:
 *       parameters:
 *         - in: path
@@ -346,7 +348,7 @@ app.put( '/paises/:pais/provincias/:provincia/ciudades/:ciudad/tiempo/:tiempo', 
  /** 
 * @openapi
 * paths:
-*   /paises/{pais}/{provincia}/{ciudad}:
+*   /paises/{pais}/provincias/{provincia}/ciudades/{ciudad}:
 *     put:
 *       parameters:
 *         - in: path
@@ -387,7 +389,7 @@ app.put( '/paises/:pais/provincias/:provincia/ciudades/:ciudad', async(_req,_res
 /** 
 * @openapi
 * paths:
-*   /paises/{pais}/{provincia}:
+*   /paises/{pais}/provincias/{provincia}:
 *     patch:
 *       parameters:
 *         - in: path
@@ -442,7 +444,7 @@ app.patch( '/paises/:pais/provincias/:provincia', async(_req,_res)=> {
  /** 
 * @openapi
 * paths:
-*   /paises/{pais}/{provincia}/{ciudad}:
+*   /paises/{pais}/provincias/{provincia}/ciudades/{ciudad}:
 *     patch:
 *       parameters:
 *         - in: path
@@ -490,7 +492,7 @@ app.patch( '/paises/:pais/provincias/:provincia/ciudades/:ciudad', async(_req,_r
  /** 
 * @openapi
 * paths:
-*   /paises/{pais}/{provincia}/ciudades/{ciudad}/registroDeTiempo/{fecha}:
+*   /paises/{pais}/provincias/{provincia}/ciudades/{ciudad}/registroDeTiempo/{fecha}:
 *     patch:
 *       parameters:
 *         - in: path
@@ -585,7 +587,7 @@ app.delete("/paises", async (_req, _res) => {
  /** 
 * @openapi
 * paths:
-*   /paises/{pais}:
+*   /paises/{pais}/ciudades:
 *     delete:
 *       parameters:
 *         - in: path
@@ -630,7 +632,7 @@ app.delete("/paises", async (_req, _res) => {
  /** 
 * @openapi
 * paths:
-*   /paises/{pais}/{provincia}:
+*   /paises/{pais}/provincias/{provincia}:
 *     delete:
 *       parameters:
 *         - in: path
@@ -681,7 +683,7 @@ app.delete( '/paises/:pais/provincias/:provincia/ciudades', async(_req,_res)=> {
  /** 
 * @openapi
 * paths:
-*   /paises/{pais}/{provincia}/{ciudad}:
+*   /paises/{pais}/provincias/{provincia}/ciudades/{ciudad}/fechas:
 *     delete:
 *       parameters:
 *         - in: path
@@ -823,7 +825,7 @@ app.get('/paises/:pais/provincias/:provincia', async (_req,_res)=>
 
 /** 
 * @openapi
-* /temperaturaPromedio/{pais}:
+* /temperaturaPromedio/paises/{pais}:
 *   get:
 *     parameters:
 *       - in: path
@@ -834,23 +836,26 @@ app.get('/paises/:pais/provincias/:provincia', async (_req,_res)=>
 *       200:
 *         description: Funcionamiento normal
 */
-app.get( '/temperaturaPromedio/:pais', (_req,_res) => {
-  if (!_req.params.pais) {
+app.get( '/temperaturaPromedio/paises/:pais', async(_req,_res) => {
+  try
+  {if (!_req.params.pais) {
     return _res.status(400).send("te falto el pais capo")
   }
   let grados:Array<Number> = new Array<Number>  
-   const x = PaisByName(_req.params.pais)
+   const x = await getPais( _req.params.pais )
   x!.provincias.forEach( (provincia) => { provincia.ciudades.forEach( ( c )=>{ c.registroDeTemperatura.forEach( (regis)=>{ grados.push(regis.grados) } ) } ) }  )
   if(!x) { return _res.status(400).send("snickers?")}
   let promedio:Number = new Number; 
   grados.forEach( (celsius)=> { if(!promedio){promedio=celsius.valueOf()}else{promedio=promedio.valueOf()+celsius.valueOf() }  }  )
   if(promedio) { return _res.json({ "promedio" : promedio.valueOf()/grados.length}) }
-  return _res.sendStatus(400)
+  return _res.sendStatus(400)}
+  catch
+  { _res.sendStatus(400) }
  } )
 
 /** 
 * @openapi
-* /temperaturaPromedio/{pais}/{provincia}:
+* /temperaturaPromedio/paises/{pais}/provincias/{provincia}:
 *   get:
 *     parameters:
 *       - in: path
@@ -865,7 +870,7 @@ app.get( '/temperaturaPromedio/:pais', (_req,_res) => {
 */
 
 
- app.get( '/temperaturaPromedio/:pais/provincias/:provincia', (_req,_res) => {
+ app.get( '/temperaturaPromedio/paises/:pais/provincias/:provincia', async(_req,_res) => {
   if (!_req.params.pais) {
     return _res.status(400).send("te falto el pais capo")
   }
@@ -873,7 +878,7 @@ app.get( '/temperaturaPromedio/:pais', (_req,_res) => {
     return _res.status(400).send("te falto provincia capo")
   }
   let grados:Array<Number> = new Array<Number>  
-   const pais = PaisByName(_req.params.pais)
+   const pais = await getPais( _req.params.pais )
    if(!pais){return _res.status(400).send("nope")}
   const x = pais.provincias.find( (pa)=> pa.nombre===_req.params.provincia )
   if(!x) { return _res.status(400).send("snickers?")}
@@ -994,7 +999,7 @@ app.post("/paises/:pais/provincias", async (_req, _res) => {
 /** 
 * @openapi
 * paths:
-*   /paises/{pais}/{provincia}:
+*   /paises/{pais}/provincias/{provincia}:
 *     post:
 *       parameters:
 *         - in: path
@@ -1039,11 +1044,27 @@ app.post("/paises/:pais/provincias/:provincia/ciudades", async (_req,_res) => {
 /** 
 * @openapi
 * paths:
-*   /paises/{pais}/{provincia}/{ciudad}:
+*   /paises/{pais}/provincias/{provincia}/ciudades/{ciudad}/fechas:
 *     post:
 *       parameters:
 *         - in: path
 *           name: pais
+*           schema:
+*             type: string
+*             default: Argentina
+*           required: true
+*         - in: path
+*           name: provincia
+*           schema:
+*             type: string
+*             default: BSAS
+*           required: true
+*         - in: path
+*           name: ciudad
+*           schema:
+*             type: string
+*             default: CABA
+*           required: true
 *       tags: 
 *         - post
 *       summary: Agrega un registro de tiempo con los datos del body
@@ -1062,7 +1083,7 @@ app.post("/paises/:pais/provincias/:provincia/ciudades", async (_req,_res) => {
 *                 $ref: '#/components/schemas/Tiempo'
 */
 
-app.post("/paises/:pais/provincias/:provincia/ciudades/:ciudad/tiempo", async(_req,_res) => {
+app.post("/paises/:pais/provincias/:provincia/ciudades/:ciudad/fechas", async(_req,_res) => {
   const tiempo  = _req.body as Tiempo
   const pais = await getPais( _req.params.pais )
   const provincia = pais.provincias.find( (prov)=> prov.nombre ===_req.params.provincia )
@@ -1078,7 +1099,7 @@ app.post("/paises/:pais/provincias/:provincia/ciudades/:ciudad/tiempo", async(_r
 
 /** 
 * @openapi
-* /paises/{pais}/{provincia}/{ciudad}:
+* /paises/{pais}/provincias/{provincia}/ciudades/{ciudad}:
 *   get:
 *     parameters:
 *       - in: path
