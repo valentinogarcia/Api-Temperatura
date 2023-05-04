@@ -8,4 +8,7 @@ export class Pais{
     constructor(inNombre: String, inProvincias: Array<Provincia>){
         this.nombre = inNombre; this.provincias = inProvincias || new Array<Provincia>;
     }
+    getProvincia(nombre:string): Provincia | undefined {
+        return this.provincias.find((provincia) => provincia.nombre.toLowerCase() === nombre.toLowerCase())
+    }
 }

@@ -1,21 +1,18 @@
 
-import { ObjectId } from 'mongodb';
-import * as mongoDB from "mongodb";
 import { Ciudad } from './Ciudad';
 import { Pais } from './Pais';
 import { Provincia } from './Provincia';
 import { Tiempo } from './Tiempo';
 import express, { json } from 'express';
 import swaggerDocs from './swagger';
-
-const DB_CONN_STRING="mongodb://localhost:27017"
-const DB_NAME="BaseDeTemperaturas"
-const COLLECTION_NAME="paises"
-
+import {dbPromise,DB_CONN_STRING,DB_NAME,COLLECTION_NAME,ConvertColectionToPais,ConvertDocumentToPais,getPais,findPais,findCiudad,findProvincia,collections} from './DataBaseFunctions/DBFunctions';
+import {paisRoutes} from "./routes/paisRoutes";
+import { provinciasRoutes } from './routes/provinciaRoutes';
 const app = express();
 
-const port = 3000
-
+const port = 3002
+paisRoutes(app)
+provinciasRoutes(app)
 
 app.use(express.json());
 
@@ -23,75 +20,14 @@ app.use(express.json());
 
 
 
-const collections: { paises?: mongoDB.Collection } = {}
-async function findPais(paises:Pais[],target:string) {
- return paises.find( (pais)=> pais.nombre.toLowerCase() === target.toLocaleLowerCase() )
-}
-async function ConvertColectionToPais(db:mongoDB.Db): Promise<Pais[]> {
-  const col = await db.collection("paises").find().toArray();
-  let paises:Pais[]=[]
-  col.forEach( (obj)=>{ const pais:Pais = new Pais(obj.nombre,obj.provincias);paises.push(pais) } )
-  return paises
-}
-
-async function ConvertDocumentToPais(document:mongoDB.WithId<mongoDB.BSON.Document>) :Promise<Pais>{
-  let pais:Pais = new Pais( document.nombre,document.provincias )
-  return pais
-}
-async function getPais(target:string ) {
-  const doc = await collections.paises?.findOne( {nombre: target} )
-  let pais = ConvertDocumentToPais(doc!)  
-  return pais
-}
-
-async function findCiudad(provincia:Provincia,target:string) {
-  return provincia.ciudades.find( (ciudad)=> ciudad.nombre.toLowerCase()===target.toLowerCase() )
-}
-
-async function findProvincia(pais:Pais,target:string) {
-  return pais.provincias.find( ( provincia ) => provincia.nombre.toLowerCase()===target.toLowerCase() )  
-}
-
-
 async function main() {
-
-  async function connectToDatabase () {
-    // dotenv.config();
-  
-    const client: mongoDB.MongoClient = new mongoDB.MongoClient(DB_CONN_STRING);
-            
-    await client.connect();
-    
-    const db: mongoDB.Db = client.db(DB_NAME);
-    const paisesCollection: mongoDB.Collection = db.collection(COLLECTION_NAME);
-    collections.paises = paisesCollection;
-       
-    console.log(`Successfully connected to database: ${db.databaseName} and collection: ${paisesCollection.collectionName}`);
-    return db;
-  }
-
-  const db: mongoDB.Db = await connectToDatabase()
-  app.get( '/paises', async (_req,_res)=> 
-    { _res.status(200).send(await ConvertColectionToPais(db)) }
-  )
+const db = await dbPromise;
 
 
 
 
-  app.patch( '/paises/:pais/', async (_req,_res)=> {
-    try {
-      const pais = _req.body as Pais
-      const paisOriginal = await getPais( _req.params.pais )
-      
-      if( pais.nombre ){ paisOriginal.nombre= pais.nombre }
-      if (pais.provincias){ paisOriginal.provincias=pais.provincias }
 
-      collections.paises?.findOneAndReplace( {nombre:_req.params.pais} , paisOriginal)
-      return _res.status(200).send("mando may guey")
-  } catch (error) {
-      _res.status(400).send("el que dice error es puto");
-  }
-  })
+
 
   async function calcGlobalSUM(grados:Array<number>)  {
     if(grados.length<=0){return false}
@@ -147,30 +83,6 @@ paises.push(new Pais("Argentina",provins))
 
 
 
-app.put("/paises/:pais", async (_req, _res) => {
-  try {
-      const pais = _req.body as Pais
-      collections.paises?.findOneAndReplace( {nombre:_req.params.pais} , pais)
-      return _res.status(200).send("mando may guey")
-  } catch (error) {
-      _res.status(400).send("el que dice error es puto");
-  }
-});
-
-app.put( '/paises/:pais/provincias/:provincia', async (_req,_res)=> {
-  const provincia = _req.body as Provincia
-  const pais = await getPais(_req.params.pais)
-  const provAux= pais.provincias.find( (p)=>p.nombre=== _req.params.provincia )
-  if(!provAux){ return _res.sendStatus(400) }
-  const provPos = pais.provincias.indexOf( provAux )
-  pais.provincias[provPos]=provincia
-  collections.paises?.findOneAndReplace( {nombre: _req.params.pais},pais )
-  _res.status(200).send("papapepo!")
-})
-
- 
-
-
 app.put( '/paises/:pais/provincias/:provincia/ciudades/:ciudad/tiempo/:tiempo', async(_req,_res)=> {
   
   const tiempo = _req.body as Tiempo
@@ -203,27 +115,6 @@ app.put( '/paises/:pais/provincias/:provincia/ciudades/:ciudad', async(_req,_res
   const respuesta = await collections.paises?.findOneAndReplace( {nombre: _req.params.pais },pais )
   _res.status(200).send(respuesta)
 })
-
-
-
- 
-app.patch( '/paises/:pais/provincias/:provincia', async(_req,_res)=> {
-  try {
-    const provincia = _req.body as Provincia
-    const pais = await getPais( _req.params.pais )
-    const provinciaOriginal = pais.provincias.find( (x)=>x.nombre===_req.params.provincia )
-    const provPos = pais.provincias.indexOf( provinciaOriginal! )
-    if( provincia.nombre ){ provinciaOriginal!.nombre= provincia.nombre }
-    if (provincia.ciudades){ provinciaOriginal!.ciudades=provincia.ciudades }
-    pais.provincias[provPos]=provinciaOriginal!
-    collections.paises?.findOneAndReplace( {nombre:_req.params.pais} , pais)
-    return _res.status(200).send("mando may guey")
-} catch (error) {
-    _res.status(400).send("el que dice error es puto");
-}
-})
-
- 
 
  
 
@@ -270,40 +161,6 @@ app.patch( '/paises/:pais/provincias/:provincia/ciudades/:ciudad/fechas/:fecha',
 
 app.get('/', (_req , _res) => _res.send('Bienvenido a mi API REST!'));
 
-
-
-app.delete("/paises", async (_req, _res) => {
-  try {
-    const r = await collections.paises?.deleteOne( { nombre: _req.body.nombre } );
-
-    if (r && r.deletedCount) {
-      _res.status(202).send(`Se fue a cagar! yei `);
-    } else if (!r) {
-      _res.status(400).send(`No!!!`);
-    } else if (!r.deletedCount) {
-      _res.status(404).send(` no existe geniopfsjmerg`);
-    }
-  } catch (error) {
-      _res.status(400).send("error");
-  }
-});
-
- 
-
- app.delete( '/paises/:pais/provincias', async(_req,_res)=> {
-  try {
-    const provincia = _req.body as Provincia
-    const pais      = await getPais( _req.params.pais )
-    const provAux   = pais.provincias.find( (x)=>x.nombre===pais.nombre )
-    const provPos = pais.provincias.indexOf(provAux!)
-    pais.provincias.splice( provPos,1 )
-    collections.paises?.findOneAndReplace( {nombre:_req.params.pais} , pais)
-    return _res.status(200).send("mando may guey")
-} catch (error) {
-    _res.status(400).send("el que dice error es puto");
-}
-})
-
  
 
 app.delete( '/paises/:pais/provincias/:provincia/ciudades', async(_req,_res)=> {
@@ -347,29 +204,8 @@ function PaisByName(nombre: String) {
     return paises.find( item => { return item.nombre== nombre} );    
 }
 
- app.get( '/paises/:pais', async(_req,_res)=> {
-  const pais = getPais(_req.params.pais)
-  _res.status(200).send(pais)   
-     }
 
- )
 
- 
-
-app.get('/paises/:pais/provincias/:provincia', async (_req,_res)=> 
-{  
-  const paises  = await ConvertColectionToPais(db)
-  const pais    = await findPais(paises,_req.params.pais)
-  if (!pais){ return _res.sendStatus(400) }
-   _res.status(200).send( await findProvincia( pais,_req.params.provincia ) )
-   /*
-    if( !_req.params.pais || !_req.params.provincia){  return _res.status(400).send("pogichamps")}
-    const element = PaisByName(_req.params.pais);
-    if(!element){return _res.sendStatus(400)}
-    console.log(element, element?.getProvincia(_req.params.provincia));
-    
-    _res.send( element!.getProvincia( _req.params.provincia) )*/
-     } )
 
 
 app.get( '/temperaturaPromedio/paises/:pais', async(_req,_res) => {
@@ -410,64 +246,6 @@ app.get( '/temperaturaPromedio/paises/:pais', async(_req,_res) => {
   if(promedio) { return _res.json({ "promedio" : promedio.valueOf()/grados.length}) }
   return _res.sendStatus(400)
  } )
-
-
- 
-
-/*app.post("/paises", async (_req,_res) => {
-  const paises = await ConvertColectionToPais(db)
-  const x = _req.body as Pais
-  const resultado = await collections.paises?.insertOne(Pais)
-  //const prueba = (await db.collection("paises").find().toArray()).push()
-}) what tho hell oh may gaaa there's no waaaiaiiaiay*/ 
-
-app.post("/paises", async (_req, _res) => {
-  try {
-      const newPais = _req.body as Pais;
-
-      const existePais = await collections.paises?.findOne({ nombre: newPais.nombre });
-      if(existePais){ return _res.status(400).send("Ya existe (leto no podemos poner eso)") }
-
-      const r = await collections.paises?.insertOne(newPais);
-      r
-          ? _res.status(201).send(`Se creo yei ${r.insertedId}`)
-          : _res.status(500).send("Que haces? GAAAAA");
-  } catch (error) {
-      _res.status(400).send("hola");
-  }
-});
-
-
-
-/*
-app.post("/paises/:pais", (_req,_res) => {
-  const p = new Provincia(_req.body.nombre, _req.body.ciudades);
-  console.log(_req.body.nombre," ", _req.body.ciudades)
-  const dirPais = paises.find((pa) => pa.nombre.toLowerCase() === _req.params.pais.toLowerCase())
-  if(!dirPais) {return _res.sendStatus(400)}
-  const repetido = dirPais.provincias.find( (pa)=>pa.nombre===_req.body.nombre )
-  if(repetido){return _res.status(400).send("Ya existe la provincia")}
-  console.log(p)
-  paises[paises.indexOf(dirPais)].provincias.push(p)
-  _res.json(p);   
-}) gggggggg*/ 
-
-/*app.post("/paises/:pais", (_req,_res) => {
-  const p = new Provincia(_req.body.nombre, _req.body.ciudades);
-  const dirPais = paises.find((pa) => pa.nombre.toLowerCase() === _req.params.pais.toLowerCase())
-  if(!dirPais) {return _res.status(400)}
-  paises[paises.indexOf(dirPais)].provincias.push(p)
-  _res.json(p);   
-})*/
-
-app.post("/paises/:pais/provincias", async (_req, _res) => {
-  const provincia = _req.body as Provincia
-  const pais = await getPais( _req.params.pais )
-  if (!pais) { _res.status(400).send( "hubo problemas encontrando la coleccion, seguramente no exista." ) }
-  pais!.provincias.push( provincia )
-  const posteado = await collections.paises?.findOneAndReplace( { nombre: _req.params.pais }, pais )
-  _res.status(200).send(posteado?.value)
-});
 
 
 
@@ -513,7 +291,6 @@ app.get('/paises/:pais/provincias/:provincia/ciudades/:ciudad', async (_req,_res
  swaggerDocs(app,port)  
 });
  
-
 } 
 
 
