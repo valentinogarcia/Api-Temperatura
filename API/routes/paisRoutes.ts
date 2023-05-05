@@ -10,4 +10,7 @@ export function paisRoutes(app){
     app.put('/paises/:pais', paisController.updatePais);
     app.patch('/paises/:pais', paisController.changePais);
     app.delete('/paises', paisController.deletePais);
+    
+    app.get('/temperaturaPromedio/paises', paisController.getTemperaturaGlobal);
+    app.get('/temperaturaPromedio/paises/:pais', paisController.getTemperaturaPais);
 }
