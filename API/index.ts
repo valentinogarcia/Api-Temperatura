@@ -1,8 +1,6 @@
-
 import express, { json } from 'express';
 import swaggerDocs from './swagger';
-//import {dbPromise,DB_CONN_STRING,DB_NAME,COLLECTION_NAME,ConvertColectionToPais,ConvertDocumentToPais,getPais,findPais,findCiudad,findProvincia,collections} from './DataBaseFunctions/DBFunctions';
-import {paisRoutes} from "./routes/paisRoutes";
+import { paisRoutes } from "./routes/paisRoutes";
 import { provinciasRoutes } from './routes/provinciaRoutes';
 import { ciudadesRoutes } from './routes/ciudadRoutes';
 import { tiemposRoutes } from './routes/tiempoRoutes';
@@ -10,33 +8,47 @@ import { tiemposRoutes } from './routes/tiempoRoutes';
 const app = express();
 app.use(express.json());
 const port = 3000
+
 paisRoutes(app)
 provinciasRoutes(app)
-ciudadesRoutes(app)//
+ciudadesRoutes(app)
 tiemposRoutes(app)
 
 
-
 async function main() {
-//const db = await dbPromise;
+  app.get('/', (_req , _res) => _res.send('Bienvenido a mi API REST!'));
 
-
-
-
-
-app.get('/', (_req , _res) => _res.send('Bienvenido a mi API REST!'));
-
-
-app.listen(port, () => {console.log(`Escuchando en el puerto ${port}!`); 
-  swaggerDocs(app,port)  
-});
- 
+  app.listen(port, () => {console.log(`Escuchando en el puerto ${port}!`); 
+    swaggerDocs(app,port)  
+  }); 
 } 
 
- main()
+main()
+
+/*
+
+npm init
+npm install typescript --save --dev
+// npm install ts-node --save --dev
+npm install nodemon --save --dev
+npm install express
+npm install @types/express 
+npm tsc --init
+
+npm install mongodb 
+npm install ts-node
+npm install swagger-ui-express
+npm install swagger-jsdoc
+
+npm install jsonwebtoken bcryptjs express-jwt @types/express-jwt @types/jsonwebtoken @types/bcryptjs
+
+npx nodemon index.ts
+
+*/ 
 
 
- /** 
+
+/** 
 * @openapi
 * paths:
 *   /paises/{pais}:

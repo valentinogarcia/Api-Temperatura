@@ -7,12 +7,12 @@ const COLLECTION_NAME = "Users"
 
 
 export function hashear( psswrd:string ){
-let salt = Date.now()+""+Date.now()
-salt = salt.slice( 0,salt.length-10)
-const hash = sha512.crypt("snickers",salt)
-console.log(hash)
-const shalt = {"hash":hash,"salt":salt} 
-return shalt
+    let salt = Date.now()+""+Date.now()
+    salt = salt.slice( 0,salt.length-10)
+    const hash = sha512.crypt("snickers",salt)
+    console.log(hash)
+    const shalt = {"hash":hash,"salt":salt} 
+    return shalt
 } 
 
 export async function conectUserDataBase () {
@@ -28,7 +28,7 @@ export async function conectUserDataBase () {
        
     console.log(`Successfully connected to database: ${db.databaseName} and collection: ${usersCollection.collectionName}`);
     return db;
-  }
+}
 
 
 export async function insertUser(name:string,psswrd:string) {
@@ -40,20 +40,20 @@ export async function insertUser(name:string,psswrd:string) {
     
     if (existeUser){return false}
     const newUser = new user(name,hash,salt)
-    return await usuarios.Users?.insertOne(newUser);
-    
+    return await usuarios.Users?.insertOne(newUser); 
 }
+
 export async function confirm(name:string,hash:string,db:mongoDB.Db){
     const existeUser=db.collection(COLLECTION_NAME)
     if(!existeUser){ return false }
-    
 }
 
 pruebaDeInsert()
-async function pruebaDeInsert() {
-await conectUserDataBase()
-await insertUser("thiagoLeto","apalapapuli")
+    async function pruebaDeInsert() {
+    await conectUserDataBase()
+    await insertUser("thiagoLeto","apalapapuli")
 }
+
 async function pruebaDeLogin() {
 
 }
