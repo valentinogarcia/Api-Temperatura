@@ -4,6 +4,7 @@ import { paisRoutes } from "./routes/paisRoutes";
 import { provinciasRoutes } from './routes/provinciaRoutes';
 import { ciudadesRoutes } from './routes/ciudadRoutes';
 import { tiemposRoutes } from './routes/tiempoRoutes';
+import { UserRoutes } from './routes/userRoutes';
 
 const app = express();
 app.use(express.json());
@@ -13,6 +14,7 @@ paisRoutes(app)
 provinciasRoutes(app)
 ciudadesRoutes(app)
 tiemposRoutes(app)
+UserRoutes(app)
 
 
 async function main() {

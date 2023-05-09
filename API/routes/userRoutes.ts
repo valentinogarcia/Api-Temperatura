@@ -1,7 +1,7 @@
 import express from "express"
 import userController from "../controllers/userControllers"  
 
-export function paisRoutes(app){
-    //app.post('/register', userController.registerOne);
-    //app.post('/login', userController.loginOne);
+export function UserRoutes(app){
+    app.post('/register', userController.userRegister);
+    app.post('/login', userController.userLogin);
 }
