@@ -82,10 +82,10 @@ export async function login(name:string,psswrd:string,db:mongoDB.Db) {
     console.log(hash);
     const foundUser=await compareHash(hash.hash,DocUsuario)
     if (foundUser) { 
-        const token = jwt.sign({name: foundUser.nombre }, "cambiarPorUnaVariable", {
+        const token = jwt.sign({name: foundUser.nombre,hash:hash }, "cambiarPorUnaVariable", {
             expiresIn: '2 days',
           })
-          return { user: { nombre:foundUser.nombre }, token: token };
+          return { "Auth":{token: token} };
      }
         
 }
@@ -94,6 +94,14 @@ async function pruebaLogin() {
     
     const borrardsp = await conectUserDataBase()
     login("ValentinoGarcia","nigger",borrardsp)
+}
+
+export async function loginToken(token:string,db:mongoDB.Db) {
+    return jwt.verify(token,"cambiarPorUnaVariable")
+    
+//    if(typeof(pack)!="string"){console.log("pack: "+ pack.payload);}
+    //return pack
+    //if(foundUser){return true}else{return false}
 }
 /*
 pruebaLogin()*/

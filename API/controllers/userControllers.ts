@@ -15,7 +15,7 @@ export default {
 
     userLogin: (async (_req,_res)=> {   
         const db = await userFunctions.conectUserDataBase();
-        const foundUser = userFunctions.login(_req.body.nombre,_req.body.psswrd,db)
+        const foundUser = await userFunctions.login(_req.body.nombre,_req.body.psswrd,db)
         _res.status(200).send(foundUser)
     })
 }  
