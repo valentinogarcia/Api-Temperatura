@@ -368,7 +368,7 @@ npx nodemon index.ts
 /** 
 * @openapi
 * paths:
-*   /paises/{pais}/ciudades:
+*   /paises/{pais}/provincias:
 *     delete:
 *       parameters:
 *         - in: path
@@ -400,7 +400,7 @@ npx nodemon index.ts
 /** 
 * @openapi
 * paths:
-*   /paises/{pais}/provincias/{provincia}:
+*   /paises/{pais}/provincias/{provincia}/ciudades:
 *     delete:
 *       parameters:
 *         - in: path
@@ -593,7 +593,7 @@ npx nodemon index.ts
 /** 
 * @openapi
 * paths:
-*   /paises/{pais}:
+*   /paises/{pais}/provincias:
 *     post:
 *       parameters:
 *         - in: path
@@ -624,7 +624,7 @@ npx nodemon index.ts
 /** 
 * @openapi
 * paths:
-*   /paises/{pais}/provincias/{provincia}:
+*   /paises/{pais}/provincias/{provincia}/ciudades:
 *     post:
 *       parameters:
 *         - in: path
