@@ -13,8 +13,9 @@ export interface CustomRequest extends Request {
    export const auth = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const db = await conectUserDataBase();
-      const token = req.body.Auth.token
-      const decoded= jwt.verify(req.body.Auth.token,"cambiarPorUnaVariable");
+      const token = req.headers.authorization
+
+      const decoded= jwt.verify(req.headers.authorization,"cambiarPorUnaVariable");
       //const objeto = new user(decoded.name,decoded.hash.hash,decoded.hash.salt);
       (req as CustomRequest).token = decoded;
       if(typeof(decoded)=="string"){ throw new Error() }
