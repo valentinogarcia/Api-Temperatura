@@ -58,7 +58,7 @@ pruebaDeInsert()*/
 
     async function pruebaDeInsert() {
     await conectUserDataBase()
-    await insertUser("ValentinoGarcia","nigger")
+    await insertUser("ValentinoGarcia","kk")
 }
 
 
@@ -93,7 +93,7 @@ export async function login(name:string,psswrd:string,db:mongoDB.Db) {
 async function pruebaLogin() {
     
     const borrardsp = await conectUserDataBase()
-    login("ValentinoGarcia","nigger",borrardsp)
+    login("ValentinoGarcia","kk",borrardsp)
 }
 
 export async function loginToken(token:string,db:mongoDB.Db) {
